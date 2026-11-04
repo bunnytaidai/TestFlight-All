@@ -1,36 +1,101 @@
 {
-  "id": "jointestflight.app.sub",
-  "name": "Tự động tham gia TestFligt",
+  "id": "hely-t.app.sub",
+  "name": "Đăng ký Hely-T (Loon & Shadowrocket v4.6.0.0)",
   "author": "@Hely-T",
-  "icon": "https://i.pinimg.com/736x/a6/78/49/a678490f1361d88d4518166025845220.jpg",
-  "repo": "https://github.com/bunnytaidai/TestFlight-All/tree/master",
+  "description": "Kho lưu trữ tự động tham gia TestFlight (Google Chrome beta: LPQmtkUs) & Tự động đổi nick Apple ID đăng ký gói.",
+  "icon": "https://avatars.githubusercontent.com/u/170521226?s=400&u=9e2c15d038fb2e92bbbf4f1ba3ff9b0e447efeb6&v=4",
+  "repo": "https://github.com/bunnytaidai/TestFlight-All",
   "apps": [
     {
       "id": "Auto_join_TF",
-      "name": "Theo dõi TestFlight",
-      "author": "@Hely-T",
-      "script": "https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/Auto_join_TF_boxjs.js",
-      "icons": [
-        "https://raw.githubusercontent.com/Hely-T/Loon/master/Resource/PNG/TestFlight.png",
-        "https://raw.githubusercontent.com/Hely-T/Loon/master/Resource/PNG/TestFlight.png"
-      ],
+      "name": "Tự động tham gia TestFlight & Đổi Nick Apple ID",
       "keys": [
+        "APP_ID",
+        "key",
         "session_id",
         "session_digest",
         "request_id",
-        "key",
-        "APP_ID"
+        "tf_ua",
+        "TF_AUTO_SWITCH_ACCOUNT",
+        "TF_ACTIVE_ACCOUNT_IDX",
+        "TF_ACCOUNTS"
+      ],
+      "descs_html": [
+        "Mặc định đã cấu hình sẵn mã <b>LPQmtkUs</b> (<a href=\"https://testflight.apple.com/join/LPQmtkUs\" target=\"_blank\">Tham gia Google Chrome beta - TestFlight - Apple</a>).",
+        "Hỗ trợ tự động lưu nhiều nick Apple ID và tự động xoay vòng đổi nick đăng ký gói beta / VIP."
       ],
       "settings": [
         {
           "id": "APP_ID",
-          "name": "Nhập APP_ID hoặc nhấn vào liên kết TF để tự động thu thập",
+          "name": "Danh sách APP_ID cần tự động vào",
+          "val": "LPQmtkUs",
+          "type": "text",
+          "placeholder": "LPQmtkUs",
+          "desc": "Mặc định: LPQmtkUs (Google Chrome beta). Có thể điền nhiều mã cách nhau bởi dấu phẩy (,)."
+        },
+        {
+          "id": "TF_AUTO_SWITCH_ACCOUNT",
+          "name": "Tự động xoay vòng đổi nick Apple ID",
+          "val": true,
+          "type": "boolean",
+          "desc": "Khi bật, Cron sẽ tự động đổi lần lượt qua tất cả các nick Apple ID đã lưu để đăng ký gói TestFlight."
+        },
+        {
+          "id": "key",
+          "name": "key",
           "val": "",
+          "type": "text",
+          "placeholder": "",
+          "desc": "Tự động lấy, không cần điền thủ công."
+        },
+        {
+          "id": "session_id",
+          "name": "session_id",
+          "val": "",
+          "type": "text",
+          "placeholder": "",
+          "desc": "Tự động lấy, không cần điền thủ công."
+        },
+        {
+          "id": "session_digest",
+          "name": "session_digest",
+          "val": "",
+          "type": "text",
+          "placeholder": "",
+          "desc": "Tự động lấy, không cần điền thủ công."
+        },
+        {
+          "id": "request_id",
+          "name": "request_id",
+          "val": "",
+          "type": "text",
+          "placeholder": "",
+          "desc": "Tự động lấy, không cần điền thủ công."
+        },
+        {
+          "id": "tf_ua",
+          "name": "tf_ua",
+          "val": "TestFlight/3.5.0 (iPhone; iOS 17.7; Scale/3.00)",
+          "type": "text",
+          "placeholder": "",
+          "desc": "Tự động lấy, không cần điền thủ công."
+        },
+        {
+          "id": "TF_ACCOUNTS",
+          "name": "Kho lưu trữ Đa Tài Khoản Apple ID (JSON)",
+          "val": "[]",
           "type": "textarea",
-          "autoGrow": "true",
-          "rows": 1,
-          "desc": "Nhập APP_ID, nhiều hơn một ID thì phân cách bằng dấu phẩy (không cách). Ví dụ: iSTXKF4K,INmLTx8d"
+          "autoGrow": true,
+          "rows": 4,
+          "desc": "Danh sách các tài khoản Apple ID đã tự động thu thập để xoay vòng đổi nick."
         }
+      ],
+      "author": "@Hely-T",
+      "repo": "https://github.com/bunnytaidai/TestFlight-All",
+      "script": "https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/Auto_join_TF_boxjs.js",
+      "icons": [
+        "https://raw.githubusercontent.com/Orz-3/mini/master/Alpha/testflight.png",
+        "https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png"
       ]
     }
   ]

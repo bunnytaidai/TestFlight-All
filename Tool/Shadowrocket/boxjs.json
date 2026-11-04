@@ -1,37 +1,156 @@
 {
-  "id": "jointestflight.shadowrocket.sub",
-  "name": "Tự động tham gia TestFlight (Shadowrocket)",
-  "author": "@Hely-T & @bunnytaidai",
-  "icon": "https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/PNG/TestFlight.png",
-  "repo": "https://github.com/bunnytaidai/TestFlight-All/tree/master",
+  "id": "hely-t.app.sub",
+  "name": "Đăng ký Hely-T (Loon & Shadowrocket v4.6.0.0)",
+  "author": "@Hely-T",
+  " description": "Kho lưu trữ tự động tham gia TestFlight (Google Chrome beta: LPQmtkUs) & Tự động đổi nick Apple ID đăng ký gói.",
+  "icon": "https://avatars.githubusercontent.com/u/170521226?s=400&u=9e2c15d038fb2e92bbbf4f1ba3ff9b0e447efeb6&v=4",
+  "repo": "https://github.com/bunnytaidai/TestFlight-All",
   "apps": [
     {
       "id": "Auto_join_TF",
-      "name": "Theo dõi TestFlight (Shadowrocket)",
-      "author": "@Hely-T & @bunnytaidai",
-      "script": "https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/Auto_join_TF_Shadowrocket.js",
-      "icons": [
-        "https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/PNG/TestFlight.png",
-        "https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/PNG/TestFlight.png"
-      ],
+      "name": "Tự động tham gia TestFlight & Đổi Nick Apple ID",
       "keys": [
+        "APP_ID",
+        "key",
         "session_id",
         "session_digest",
         "request_id",
-        "key",
         "tf_ua",
-        "APP_ID"
+        "TF_AUTO_SWITCH_ACCOUNT",
+        "TF_ACTIVE_ACCOUNT_IDX",
+        "TF_ACCOUNTS"
+      ],
+      "descs_html": [
+        "Mặc định đã cấu hình sẵn mã <b>LPQmtkUs</b> (<a href=\"https://testflight.apple.com/join/LPQmtkUs\" target=\"_blank\">Tham gia Google Chrome beta - TestFlight - Apple</a>).",
+        "Hỗ trợ tự động lưu nhiều nick Apple ID và tự động xoay vòng đổi nick đăng ký gói beta / VIP."
       ],
       "settings": [
         {
           "id": "APP_ID",
-          "name": "Nhập APP_ID hoặc nhấn vào liên kết TF để tự động thu thập",
+          "name": "Danh sách APP_ID cần tự động vào",
+          "val": "LPQmtkUs",
+          "type": "text",
+          "placeholder": "LPQmtkUs",
+          "desc": "Mặc định: LPQmtkUs (Google Chrome beta). Có thể điền nhiều mã cách nhau bởi dấu phẩy (,)."
+        },
+        {
+          "id": "TF_AUTO_SWITCH_ACCOUNT",
+          "name": "Tự động xoay vòng đổi nick Apple ID",
+          "val": true,
+          "type": "boolean",
+          "desc": "Khi bật, Cron sẽ tự động đổi lần lượt qua tất cả các nick Apple ID đã lưu để đăng ký gói TestFlight."
+        },
+        {
+          "id": "key",
+          "name": "Account Key (Đang kích hoạt)",
           "val": "",
+          "type": "text",
+          "placeholder": "",
+          "desc": "Tự động lấy khi mở ứng dụng TestFlight."
+        },
+        {
+          "id": "session_id",
+          "name": "session_id (Đang kích hoạt)",
+          "val": "",
+          "type": "text",
+          "placeholder": "",
+          "desc": "Tự động lấy khi mở ứng dụng TestFlight."
+        },
+        {
+          "id": "session_digest",
+          "name": "session_digest (Đang kích hoạt)",
+          "val": "",
+          "type": "text",
+          "placeholder": "",
+          "desc": "Tự động lấy khi mở ứng dụng TestFlight."
+        },
+        {
+          "id": "request_id",
+          "name": "request_id (Đang kích hoạt)",
+          "val": "",
+          "type": "text",
+          "placeholder": "",
+          "desc": "Tự động lấy khi mở ứng dụng TestFlight."
+        },
+        {
+          "id": "tf_ua",
+          "name": "User-Agent TestFlight",
+          "val": "TestFlight/3.5.0 (iPhone; iOS 17.7; Scale/3.00)",
+          "type": "text",
+          "placeholder": "",
+          "desc": "Tự động lấy khi mở ứng dụng TestFlight."
+        },
+        {
+          "id": "TF_ACCOUNTS",
+          "name": "Kho lưu trữ Đa Tài Khoản Apple ID (JSON)",
+          "val": "[]",
           "type": "textarea",
-          "autoGrow": "true",
-          "rows": 1,
-          "desc": "Nhập APP_ID, nhiều hơn một ID thì phân cách bằng dấu phẩy (không cách). Ví dụ: iSTXKF4K,INmLTx8d"
+          "autoGrow": true,
+          "rows": 4,
+          "desc": "Danh sách các tài khoản Apple ID đã tự động thu thập để xoay vòng đổi nick."
         }
+      ],
+      "author": "@Hely-T",
+      "repo": "https://github.com/bunnytaidai/TestFlight-All",
+      "script": "https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/Auto_join_TF_Shadowrocket.js",
+      "icons": [
+        "https://raw.githubusercontent.com/Orz-3/mini/master/Alpha/testflight.png",
+        "https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png"
+      ]
+    },
+    {
+      "id": "iRingo.TestFlight",
+      "name": " Chế độ Đa Tài Khoản & Mở Khóa Thiết Bị TestFlight",
+      "keys": [
+        "@iRingo.TestFlight.Settings.Switch",
+        "@iRingo.TestFlight.Settings.CountryCode",
+        "@iRingo.TestFlight.Settings.MultiAccount",
+        "@iRingo.TestFlight.Settings.Universal",
+        "@iRingo.TestFlight.Caches"
+      ],
+      "settings": [
+        {
+          "id": "@iRingo.TestFlight.Settings.Switch",
+          "name": "Bật tính năng mở rộng TestFlight",
+          "val": true,
+          "type": "boolean",
+          "desc": "Kích hoạt bộ xử lý đa tài khoản và mở khóa thiết bị."
+        },
+        {
+          "id": "@iRingo.TestFlight.Settings.CountryCode",
+          "name": "Mã Quốc Gia Storefront",
+          "val": "US",
+          "type": "selects",
+          "items": [
+            { "key": "AUTO", "label": "🇺🇳 Tự động (AUTO)" },
+            { "key": "VN", "label": "🇻🇳 Việt Nam (VN)" },
+            { "key": "US", "label": "🇺🇸 Hoa Kỳ (US)" },
+            { "key": "SG", "label": "🇸🇬 Singapore (SG)" },
+            { "key": "JP", "label": "🇯🇵 Nhật Bản (JP)" },
+            { "key": "TW", "label": "🇹🇼 Đài Loan (TW)" }
+          ],
+          "desc": "Tránh giới hạn khu vực khi cài đặt gói TestFlight."
+        },
+        {
+          "id": "@iRingo.TestFlight.Settings.MultiAccount",
+          "name": "Hỗ trợ Đa Tài Khoản Apple ID (Multi-Account)",
+          "val": true,
+          "type": "boolean",
+          "desc": "Bật mặc định để tự động lưu và chuyển đổi nhiều tài khoản Apple ID không bị văng phiên."
+        },
+        {
+          "id": "@iRingo.TestFlight.Settings.Universal",
+          "name": "Tương thích mọi thiết bị (iOS/iPadOS/macOS)",
+          "val": true,
+          "type": "boolean",
+          "desc": "Bỏ qua kiểm tra giới hạn phần cứng/hệ điều hành khi tải ứng dụng TestFlight."
+        }
+      ],
+      "author": "@VirgilClyne & @Hely-T",
+      "repo": "https://github.com/bunnytaidai/TestFlight-All",
+      "icons": [
+        "https://developer.apple.com/assets/elements/icons/testflight/testflight-64x64_2x.png",
+        "https://developer.apple.com/assets/elements/icons/testflight/testflight-64x64_2x.png"
       ]
     }
   ]

@@ -1,67 +1,58 @@
-### Script Auto Join TestFlight
- * **Script By [Hely-T](https://github.com/Hely-T) | Shadowrocket Edition By [bunnytaidai](https://github.com/bunnytaidai/TestFlight-All)**
-- Không sử dụng proxy để tải xuống tệp
-- Vui lòng cài Certificate và Trust trong cài đặt chung máy trước khi sử dụng
+### 🚀 Script Auto Join TestFlight & Tự Động Đổi Nick Apple ID (`version.4.6.0.0`)
+ * **Script By [Hely-T](https://github.com/Hely-T)** — Bản nâng cấp đồng bộ cho **Loon** & **Shadowrocket**
+- **Link mục tiêu mặc định đã cấu hình sẵn:** **[Tham gia Google Chrome beta - TestFlight - Apple](https://testflight.apple.com/join/LPQmtkUs)** (Mã `APP_ID`: **`LPQmtkUs`**)
+- Không sử dụng proxy cho `testflight.apple.com` (đã ép `DIRECT` tự động để bắt slot nhanh nhất và không bị lỗi mạng).
+- Vui lòng cài **Certificate (Chứng chỉ CA)** và bật **Trust (Tin cậy chứng chỉ)** trong Cài đặt chung của máy trước khi sử dụng.
+- **Tính năng mới (`v4.6.0.0`):**
+  1. Tự động nạp sẵn mã **`LPQmtkUs` (Google Chrome beta)** ngay từ đầu — không cần nhập thủ công.
+  2. Tự động lưu **nhiều tài khoản Apple ID (`Multi-Account Pool`)** khi mở TestFlight và **tự động xoay vòng đổi nick Apple ID** để đăng ký gói beta TestFlight cho tất cả các nick.
+  3. Chạm vào **biểu tượng Tài khoản góc trên bên phải** trong ứng dụng TestFlight (`/v1/devices`) để **đổi nhanh sang nick Apple ID tiếp theo**.
+  4. Tự động làm mới `ETag` và mở khóa gói cước VIP (`RevenueCat`, `GoodNotes 6`, `Notability`, `Picsart`, `CamScanner`, `Fantastical`, `Slidebox`, `Meitu`) mỗi khi đổi nick Apple ID.
 
- * Tổng hợp các file click nhanh để cài đặt auto. Có thể không hoạt động
-**[Loon](https://api.boxjs.app/loon/import?plugin=https://github.com/Hely-T/TestFlight-All/raw/master/Tool/Loon/FastClick/TestFlight.plugin)** , **[Surge5](https://api.boxjs.app/surge/install-module?url=https://github.com/Hely-T/TestFlight-All/raw/master/Tool/Surge5/FastClick/TestFlight.sgmodule)** , **[QuantumultX](https://api.boxjs.app/quanx/add-resource?remote-resource=%7B%22rewrite_remote%22%3A%5B%22https%3A%2F%2Fgithub.com/Hely-T/TestFlight-All/raw/master/Tool/QuantumultX/FastClick/TestFlight.snippet)** , **[Stash](https://link.stash.ws/install-override/github.com/Hely-T/TestFlight-All/raw/master/Tool/Stash/FastClick/TestFlight.stoverride)**
+---
 
-### Cách sử dụng Loon
+### 🦅 1. Cách sử dụng trên Loon (Đã tối ưu All-In-One & Tự Đổi Nick Apple ID)
 
-- Nhập Plugin (https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Auto_Join_TF.plugin)
-- Vào trang Mitm để kích hoạt và bật Mitm qua Http2
-- Vào Profile -> Data Persistence -> Import Data by key. Key= APP_ID, Value= (Có thể bỏ trống) - (Nếu đã nhập plugin trước có APP_ID thì k cần thêm nữa)
-- Tick bật Script ở Profile lên -> Khởi động bật Loon và cho phép VPN, sau đó vào App TestFlight để kích hoạt Plugin
-- Đi tới Profile -> Plugin -> Chọn vào Script, trong mục APP_ID điền ID của TF bạn muốn tham gia làm giá trị, (ID là ký tự sau khi nối liên kết https://testflight.apple.com/join/LPQmtkUs String (nghĩa là "LPQmtkUs" trong ví dụ này)⚠️: hỗ trợ liên kết TF không giới hạn, mỗi liên kết cần phân tách bằng dấu phẩy "," (chẳng hạn như: LPQmtkUs ,Hgun65jg,8yhJgv)
-)
-* **Fast Click. Có thể không hoạt động [Loon](https://api.boxjs.app/loon/import?plugin=https://github.com/Hely-T/TestFlight-All/raw/master/Tool/Loon/FastClick/TestFlight.plugin)**
-### Cách sử dụng Surge5
+- **Cách 1 — Dùng File Cấu Hình Trọn Gói (`Loon_All_In_One.conf`):**
+  - Nhập trực tiếp file cấu hình: [`Tool/Loon/Config/Loon_All_In_One.conf`](./Tool/Loon/Config/Loon_All_In_One.conf) (`https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Loon/Config/Loon_All_In_One.conf`)
+  - Bật **MitM** và **MitM qua HTTP/2** ➔ Bật VPN Loon ➔ Mở ứng dụng **TestFlight**. Hệ thống tự lấy Token và tự động săn ngay **Google Chrome beta (`LPQmtkUs`)**!
 
-- Vào MitM - Chọn Hostname -> add: testflight.apple.com -> Done
-- Vào **Code [Click vào đây](https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Surge5/Code.txt)** và copy toàn bộ code
-- Qua Modules -> New Local Module -> Dán toàn bộ code đã copy được vào -> Done -> Đặt name bất kì (Vì tôi đã setup name auto lên đặt tên như nào cũng được) -> OK -> Click vào Script để bật lên -> Done
-- Bật HTTP Capture -> Start Surge -> Vào TF để lấy thông tin -> Lấy xong vào lại Script nãy đã add -> 3 gạch -> Edit Content 
-- Ở dưới Script ta thêm # vào đầu ( tức là trước {{{INFO_FETCH_SCRIPT_NAME}}} - Dạng: #{{{INFO_FETCH_SCRIPT_NAME}}} ) -> Done,(có thể bỏ qua bước này cho tiện nhưng nên làm để đỡ bị get thêm nhiều thông tin) -> Sau đó tắt HTTP Capture 
-- Vào mục Scripting -> Editor -> Click vào bánh răng -> $persistentStore -> Nếu chưa có APP_ID thì bấm vào dấu + và thêm mục tên APP_ID, nếu đã có rồi thì qua bước mới.
-- Click vào APP_ID và điền ID các app TestFlight cần auto. Ngăn cách nhau bằng dấu "," và viết liền không cách.
-- => Kiểm tra lịch sử ở Utilities -> Logs
-* **Fast Click. Có thể không hoạt động [Surge5](https://api.boxjs.app/surge/install-module?url=https://github.com/Hely-T/TestFlight-All/raw/master/Tool/Surge5/FastClick/TestFlight.sgmodule)**
+- **Cách 2 — Nhập Plugin lẻ trên Loon:**
+  - **Plugin Tự động vào Google Chrome beta (`LPQmtkUs`) & Đổi Nick Apple ID:**
+    `https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Loon/Plugin/Auto_Join_TF.plugin` *(hoặc [`Auto_Join_TF.plugin`](./Auto_Join_TF.plugin) ở thư mục gốc)*
+  - **Plugin Đa Tài Khoản TestFlight + Mở Khóa Thiết Bị + Tải Nhanh CDN:**
+    `https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Loon/Plugin/TestFlight.plugin`
+  - **Plugin Mở Khóa Gói Đăng Ký VIP Khi Đổi Nick Apple ID:**
+    `https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Loon/Plugin/Auto_Subscription_Unlock.plugin`
+  - **Plugin BoxJs Quản Lý Đa Tài Khoản (`http://boxjs.com`):**
+    `https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Loon/Plugin/BoxJs.plugin`
 
-### Cách sử dụng QuantumultX
+---
 
-- Đầu tiên: **Toàn bộ câu lệnh mình để ở [Đây](https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/QuantumultX/code.txt)**
-- Ở Setting mục Rewrite -> Resources -> Copy link số 1 -> Bên trên góc phải màn hình có hình 2 xích móc vào nhau hãy bấm vào -> Resource URL: Dán link nãy vừa copy -> Tag đặt tên theo ý thích. -> Quay ra setting và bật Rewrite lên
-- Kéo xuống ở mục Profile chọn Edit -> + task_local: copy mục số 2 và dán vào bên dưới task_local -> + mitm: dán mục số 3 bên dưới
-- Quay lại Rewrite -> Resource -> 2 Xích -> Dán link số 4 -> Tag= boxjs.
--Bật QuantumultX -> Vào Safari -> Ghi: boxjs.com -> Subscriptions -> Add Subscription -> Dán link số 5 -> Save -> Vào app TestFlight để lấy thông tin.
-- Applications -> Theo dõi TestFlight -> Nhập link cần treo -> Done!
-* **Fast Click. Có thể không hoạt động [QuantumultX](https://api.boxjs.app/quanx/add-resource?remote-resource=%7B%22rewrite_remote%22%3A%5B%22https%3A%2F%2Fgithub.com/Hely-T/TestFlight-All/raw/master/Tool/QuantumultX/FastClick/TestFlight.snippet)**
-### Cách sử dụng Stash
-- Đầu tiên: **Toàn bộ câu lệnh mình để ở [Đây](https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Stash/code.txt)**
-- Có 2 file. 1 File sử dụng thủ công bằng cách:
-- Mục Ghi Đè hãy thêm link 1 và link 2 và link 3
-- Mục rewrite ( Viết lại ) dán link 3
-- Ở mục MitM -> Bấm dấu + -> Dán link 3 vào -> Tải xuống -> Done
-- Bật VPN -> Vào Safari -> Ghi: boxjs.com hoặc boxjs.net -> Subscriptions -> Add Subscription -> Dán link số 4 -> Save -> Vào app TestFlight để lấy thông tin.
-Applications -> Theo dõi TestFlight -> Nhập link cần treo -> Done!
+### 🚀 2. Cách sử dụng trên Shadowrocket (Đã tối ưu All-In-One & Tự Đổi Nick Apple ID)
 
-- Cách 2: Cài file nhanh: **Stash Fast Click [Stash](https://link.stash.ws/install-override/github.com/Hely-T/TestFlight-All/raw/master/Tool/Stash/FastClick/TestFlight.stoverride)**
+- **Xem hướng dẫn chi tiết tại:** [`Tool/Shadowrocket/README.md`](./Tool/Shadowrocket/README.md)
+- **Cách 1 — Dùng File Cấu Hình Trọn Gói (`Shadowrocket_All_In_One.conf`):**
+  - Nhập file [`Tool/Shadowrocket/Shadowrocket_All_In_One.conf`](./Tool/Shadowrocket/Shadowrocket_All_In_One.conf) vào tab `Config` của Shadowrocket ➔ Bật **HTTPS Decryption (Giải mã HTTPS)** ➔ Bật VPN và mở app **TestFlight**.
+- **Cách 2 — Thêm các Module `.sgmodule` vào tab `Module` của Shadowrocket:**
+  1. **Tự động vào Google Chrome beta (`LPQmtkUs`) & Xoay vòng Apple ID:** [`Tool/Shadowrocket/Auto_Join_TF.sgmodule`](./Tool/Shadowrocket/Auto_Join_TF.sgmodule)
+  2. **Đa tài khoản Apple ID & Đổi nick 1 chạm (`/v1/devices`):** [`Tool/Shadowrocket/TestFlight_Unlock_Multi.sgmodule`](./Tool/Shadowrocket/TestFlight_Unlock_Multi.sgmodule)
+  3. **Tự động đổi nick Apple ID đăng ký gói VIP (Subscription Unlock):** [`Tool/Shadowrocket/Auto_Subscription_Unlock.sgmodule`](./Tool/Shadowrocket/Auto_Subscription_Unlock.sgmodule)
+  4. **Quản lý BoxJS (`http://boxjs.com`):** [`Tool/Shadowrocket/BoxJs.sgmodule`](./Tool/Shadowrocket/BoxJs.sgmodule)
+- **Link đăng ký BoxJS (`Subscriptions` trên `http://boxjs.com`):**
+  `https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/boxjs.json`
 
-### Cách sử dụng Shadowrocket (Mới cập nhật - Tối ưu iOS 17.7 Chip A15 Chưa JB)
-- **Thư mục cấu hình chuẩn cho Shadowrocket:** Xem tại [`Tool/Shadowrocket/`](./Tool/Shadowrocket/README.md)
-- **Bước 1 (Bật Giải mã HTTPS / MITM):** Vào tab `Config` (Cấu hình) -> bấm chữ `i` cạnh file cấu hình -> `HTTPS Decryption` (Giải mã HTTPS) -> Bật lên, tạo & cài đặt chứng chỉ CA mới, sau đó vào `Cài đặt iOS -> Cài đặt chung -> Giới thiệu -> Cài đặt tin cậy chứng chỉ` bật xanh chứng chỉ Shadowrocket.
-- **Bước 2 (Tự động tham gia link TestFlight):**
-  - Vào tab `Module` (Mô-đun) -> bấm `+` thêm 2 link sau:
-    1. `https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/Auto_Join_TF.sgmodule`
-    2. `https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/BoxJs.sgmodule`
-  - Bật VPN Shadowrocket -> Mở app **TestFlight** để tự động lấy Token.
-  - **Cách 1 (Tự bắt link 1 chạm):** Bấm trực tiếp vào link `https://testflight.apple.com/join/XXXX`, Shadowrocket tự động lưu `APP_ID` và chạy ngầm mỗi 2 giây để săn slot!
-  - **Cách 2 (Đăng ký gói trên BoxJS để nhập nhiều APP_ID):** Mở Safari vào `http://boxjs.com` -> `Subscriptions` -> `+` (`Add Subscription`) -> dán link `https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/boxjs.json` -> Save -> Vào `Applications` -> `Theo dõi TestFlight` -> Nhập các mã `APP_ID` cách nhau bằng dấu phẩy `,` -> Save!
-- **Bước 3 (Tự động đăng ký gói VIP / IAP Unlock):** Thêm module `https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/Auto_Subscription_Unlock.sgmodule` vào Shadowrocket, bật VPN và bấm `Restore Purchases` (Khôi phục giao dịch mua) trong ứng dụng.
+---
 
-### Lời tâm sự
+### ⚡ 3. Cách sử dụng Surge 5
 
-- Đây là một bộ source được tôi fork từ bên Trung Quốc về và đã Việt Hoá lại (Loon,Surge)
-- Loon tôi đã fix thông báo httpconnect (Không thông báo liên tục khi kết nối yếu nữa)
-- Surge tôi đã update Auto Setup Name + Auto Cron. Mọi người chỉ cần làm theo hướng dẫn và sử dụng
-- 18/05/2024: Đã update QuantumultX.Stash và việt hoá. Mọi người hãy sử dụng và cảm nhận.
+- Vào MitM - Chọn Hostname -> add: `testflight.apple.com` -> Done
+- Vào **Code [Click vào đây](https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Surge5/Code.txt)** hoặc thêm trực tiếp module [`Tool/Surge5/Surge/AUTOTF.sgmodule`](./Tool/Surge5/Surge/AUTOTF.sgmodule) và [`Tool/Surge5/Surge/TestFlight.sgmodule`](./Tool/Surge5/Surge/TestFlight.sgmodule).
+- Mặc định `APP_ID` đã được điền sẵn `LPQmtkUs` (Google Chrome beta).
+
+---
+
+### 🌐 4. Cách sử dụng QuantumultX & Stash
+
+- **QuantumultX:** Xem câu lệnh tại [`Tool/QuantumultX/code.txt`](./Tool/QuantumultX/code.txt)
+- **Stash:** Xem câu lệnh tại [`Tool/Stash/code.txt`](./Tool/Stash/code.txt)

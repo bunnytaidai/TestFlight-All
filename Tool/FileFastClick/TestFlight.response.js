@@ -13224,7 +13224,7 @@ var Siri$1 = /*#__PURE__*/Object.freeze({
 var Settings$1 = {
 	Switch: "true",
 	CountryCode: "US",
-	MultiAccount: "false",
+	MultiAccount: "true",
 	Universal: "true"
 };
 var TestFlight = {

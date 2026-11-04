@@ -1,17 +1,20 @@
-#!name=内测切换
-#!desc=https://github.com/VirgilClyne TestFlight
-#!author=VirgilClyne
+#!name=Chuyển Đổi Đa Tài Khoản TestFlight (Multi-Account Apple ID)
+#!desc=Hỗ trợ lưu và tự động chuyển đổi nhiều tài khoản Apple ID khi bấm biểu tượng Tài khoản góc phải trong ứng dụng TestFlight
+#!author=VirgilClyne & Hely-T (v4.6.0.0)
 #!category=Third Party Module
-#!arguments=APPIDS:iRingo.TestFlight,ENGINE:auto
-#!arguments-desc=[参数设置]\n▪︎ APPIDS: 指定需要切换的应用ID,多个应用ID用英文逗号分隔,默认变量"iRingo.TestFlight"会话切换;\n▪︎ ENGINE: 脚本执行引擎,默认为"auto"自动选择,可选参数"auto ↪︎ jsc ↪︎ webview";\n[使用说明]\n▫︎ iOS端点击TestFlight App右上角"图标"触发会话切换,tvOS端点击TestFlight App中上方"设置"触发会话切换;\n▫︎ 会话切换成功后无需删后台,下拉一次刷新即可;\n▫︎ 更多使用方法参考 https://github.com/VirgilClyne/iRingo/wiki/✈-TestFlight
+#!arguments=APPIDS:Auto_join_TF,ENGINE:auto
+#!arguments-desc=[Tham số]\n▪︎ APPIDS: Chỉ định ID ứng dụng cần chuyển đổi phiên (Mặc định: Auto_join_TF);\n▪︎ ENGINE: Bộ máy thực thi (auto / jsc / webview);\n[Hướng dẫn]\n▫︎ Nhấn biểu tượng Tài khoản góc trên bên phải trong ứng dụng TestFlight để tự động chuyển sang nick Apple ID tiếp theo.
 
 [General]
 skip-proxy = %APPEND% iosapps.itunes.apple.com
 
+[Rule]
+DOMAIN-SUFFIX,testflight.apple.com,DIRECT
+
 [Script]
-会话切换 = type=http-request,pattern=https:\/\/testflight\.apple\.com\/v1\/devices$,script-path=https://raw.githubusercontent.com/chavyleung/scripts/master/box/switcher/box.switcher.js,requires-body=1,argument={{{APPIDS}}},script-update-interval=0,timeout=30,engine={{{ENGINE}}}
-内测请求 = type=http-request,requires-body=true,pattern=^https?:\/\/testflight\.apple\.com\/(.+)(\?.*)?$,script-path=https://raw.githubusercontent.com/VirgilClyne/iRingo/main/js/TestFlight.request.js,timeout=60,engine={{{ENGINE}}}
-内测回应 = type=http-response,requires-body=true,pattern=^https?:\/\/testflight\.apple\.com\/(.+)(\?.*)?$,script-path=https://raw.githubusercontent.com/VirgilClyne/iRingo/main/js/TestFlight.response.js,timeout=60,engine={{{ENGINE}}}
+Chuyển đổi phiên Apple ID = type=http-request,pattern=^https?:\/\/testflight\.apple\.com\/v1\/devices$,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/boxjs/switcher/box.switcher.js,requires-body=1,argument={{{APPIDS}}},script-update-interval=0,timeout=30,engine={{{ENGINE}}}
+TestFlight Đa Tài Khoản (Request) = type=http-request,requires-body=true,pattern=^https?:\/\/testflight\.apple\.com\/(.+)(\?.*)?$,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/FileFastClick/TestFlight.request.viethoa.js,argument=Switch="true"&CountryCode="US"&MultiAccount="true"&Universal="true",timeout=60,engine={{{ENGINE}}}
+TestFlight Đa Tài Khoản (Response) = type=http-response,requires-body=true,pattern=^https?:\/\/testflight\.apple\.com\/(.+)(\?.*)?$,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/FileFastClick/TestFlight.response.viethoa.js,argument=Switch="true"&CountryCode="US"&MultiAccount="true"&Universal="true",timeout=60,engine={{{ENGINE}}}
 
 [MITM]
 hostname = %APPEND% testflight.apple.com

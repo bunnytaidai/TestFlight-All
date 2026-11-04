@@ -1,18 +1,19 @@
-#!name = BoxJs
-#!desc = JavaScript数据管理器，用于管理脚本储存的数据。使用前请在本插件的详情页面为[PROXY]项分配代理策略。
+#!name = BoxJs (Quản Lý Đa Tài Khoản Apple ID & APP_ID)
+#!desc = Giao diện web quản lý danh sách nick Apple ID, chuyển đổi phiên tự động và cấu hình APP_ID (http://boxjs.com)
 #!openUrl = http://boxjs.com
-#!author = chavyleung
-#!homepage = https://gitlab.com/lodepuly/vpn_tool/-/tree/master/Tool/Loon/Plugin
-#!icon = https://gitlab.com/lodepuly/iconlibrary/-/raw/main/Other_icon/120px/BoxJS.png
-#!date = 2024-04-23 08:28:27
+#!author = chavyleung & Hely-T (v4.6.0.0)
+#!homepage = https://github.com/bunnytaidai/TestFlight-All
+#!icon = https://raw.githubusercontent.com/Orz-3/mini/master/Color/box.png
 
 [Rule]
-DOMAIN-SUFFIX, jsdelivr.net, PROXY
+DOMAIN-SUFFIX, boxjs.com, DIRECT
+DOMAIN-SUFFIX, boxjs.net, DIRECT
+
+[Rewrite]
+^https?:\/\/(.+\.)?boxjs\.(com|net) https://boxjs.com 302
 
 [Script]
-# http-request ^https?:\/\/(.+\.)?boxjs\.(com|net) script-path = https://gitlab.com/lodepuly/vpn_tool/-/raw/master/Resource/Script/BoxJs/BoxJs.js, requires-body =  true, tag = BoxJS, timeout = 120
-
-http-request ^https?:\/\/(.+\.)?boxjs\.(com|net) script-path = https://raw.githubusercontent.com/chavyleung/scripts/master/box/chavy.boxjs.js, requires-body =  true, tag = BoxJS, timeout = 120
+http-request ^https?:\/\/(.+\.)?boxjs\.(com|net) script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/boxjs/chavy.boxjs.js, requires-body = true, tag = BoxJs, timeout = 120
 
 [Mitm]
-hostname = boxjs.com, boxjs.net, *.boxjs.com, *.boxjs.net
+hostname = boxjs.com, *.boxjs.com, boxjs.net, *.boxjs.net
