@@ -1,0 +1,23 @@
+#!name=🚀 Tự Động Tham Gia TestFlight (Shadowrocket iOS 17.7 A15)
+#!desc=Tự động lấy Token khi mở app TestFlight, tự động lưu APP_ID khi nhấn vào link TestFlight và tự động săn slot tham gia nền (Cron). Tối ưu cho iOS 17.7 A15 chưa Jailbreak (ép TCP chống kẹt QUIC/HTTP3).
+#!openUrl=http://boxjs.com/#/app/Auto_join_TF
+#!author=Hely-T & bunnytaidai (Shadowrocket Edition)
+#!homepage=https://github.com/bunnytaidai/TestFlight-All
+#!icon=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/PNG/TestFlight.png
+#!system=ios
+#!category=TestFlight
+
+[Rule]
+# Chặn QUIC/UDP trên iOS 17.7 để ép TestFlight dùng HTTPS/TCP giúp MITM bắt Token 100%
+AND,((DOMAIN,testflight.apple.com),(PROTOCOL,UDP)),REJECT
+DOMAIN,testflight.apple.com,PROXY
+
+[Script]
+# 1. Tự động thu thập Token khi mở App TestFlight & Tự động bắt APP_ID khi nhấn vào link https://testflight.apple.com/join/xxxx
+Thu thập Token & Link TestFlight = type=http-request,pattern=^https?:\/\/testflight\.apple\.com\/(v3\/accounts\/.*\/apps|join\/[A-Za-z0-9]+|v3\/accounts\/.*\/ru\/[A-Za-z0-9]+),script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/Auto_join_TF_Shadowrocket.js,timeout=60
+
+# 2. Tự động chạy ngầm (Cron) mỗi 2 giây để kiểm tra slot trống và tự động nhấn Accept tham gia
+Tự động săn slot TestFlight = type=cron,cronexp="*/2 * * * * *",script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/Auto_join_TF_Shadowrocket.js,wake-system=1,timeout=180
+
+[MITM]
+hostname = %APPEND% testflight.apple.com

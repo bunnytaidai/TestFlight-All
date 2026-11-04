@@ -1,0 +1,17 @@
+#!name=📦 BoxJS - Quản Lý & Đăng Ký Gói Tệp Lệnh (Shadowrocket)
+#!desc=Trình quản lý dữ liệu Script (BoxJS) trên trình duyệt Safari (http://boxjs.com). Dùng để đăng ký gói (Subscription) quản lý danh sách APP_ID TestFlight và cấu hình Script.
+#!openUrl=http://boxjs.com
+#!author=chavyleung & bunnytaidai
+#!homepage=https://github.com/bunnytaidai/TestFlight-All
+#!icon=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/PNG/boxjs.png
+#!system=ios
+#!category=BoxJS
+
+[Rule]
+DOMAIN-SUFFIX,jsdelivr.net,PROXY
+
+[Script]
+BoxJS = type=http-request,pattern=^https?:\/\/(.+\.)?boxjs\.(com|net),requires-body=1,max-size=-1,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/boxjs/chavy.boxjs.js,timeout=120
+
+[MITM]
+hostname = %APPEND% boxjs.com, boxjs.net, *.boxjs.com, *.boxjs.net

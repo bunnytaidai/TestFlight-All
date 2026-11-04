@@ -32,6 +32,8 @@ if (typeof $request !== 'undefined' && $request) {
         let session_id = headers['x-session-id']
         let session_digest = headers['x-session-digest']
         let request_id = headers['x-request-id']
+        let ua = headers['user-agent'] || 'TestFlight/3.5.0 (iPhone; iOS 17.4; Scale/3.00)'
+        $persistentStore.write(ua, 'tf_ua')
 
         $persistentStore.write(session_id, 'session_id')
         $persistentStore.write(session_digest, 'session_digest')
@@ -65,7 +67,7 @@ if (typeof $request !== 'undefined' && $request) {
             }
             if (ids.length === 0) {
                 $notification.post('Đã tham gia tất cả TestFlight 🎉', '', 'Mô-đun đã tự động đóng', {"sound": true});
-                $done($httpAPI('POST', '/v1/modules', {'Giám sát công khai': false}));
+                if (typeof $httpAPI === "function") { $done($httpAPI('POST', '/v1/modules', {'Giám sát công khai': false})); } else { $done(); }
             } else {
                 $done()
             }
@@ -79,7 +81,8 @@ async function autoPost(ID, ids) {
     let header = {
         'X-Session-Id': $persistentStore.read('session_id'),
         'X-Session-Digest': $persistentStore.read('session_digest'),
-        'X-Request-Id': $persistentStore.read('request_id')
+        'X-Request-Id': $persistentStore.read('request_id'),
+        'User-Agent': $persistentStore.read('tf_ua') || 'TestFlight/3.5.0 (iPhone; iOS 17.4; Scale/3.00)'
     }
 
     return new Promise((resolve) => {

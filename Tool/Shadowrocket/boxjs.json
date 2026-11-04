@@ -1,0 +1,38 @@
+{
+  "id": "jointestflight.shadowrocket.sub",
+  "name": "Tự động tham gia TestFlight (Shadowrocket)",
+  "author": "@Hely-T & @bunnytaidai",
+  "icon": "https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/PNG/TestFlight.png",
+  "repo": "https://github.com/bunnytaidai/TestFlight-All/tree/master",
+  "apps": [
+    {
+      "id": "Auto_join_TF",
+      "name": "Theo dõi TestFlight (Shadowrocket)",
+      "author": "@Hely-T & @bunnytaidai",
+      "script": "https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/Auto_join_TF_Shadowrocket.js",
+      "icons": [
+        "https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/PNG/TestFlight.png",
+        "https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/PNG/TestFlight.png"
+      ],
+      "keys": [
+        "session_id",
+        "session_digest",
+        "request_id",
+        "key",
+        "tf_ua",
+        "APP_ID"
+      ],
+      "settings": [
+        {
+          "id": "APP_ID",
+          "name": "Nhập APP_ID hoặc nhấn vào liên kết TF để tự động thu thập",
+          "val": "",
+          "type": "textarea",
+          "autoGrow": "true",
+          "rows": 1,
+          "desc": "Nhập APP_ID, nhiều hơn một ID thì phân cách bằng dấu phẩy (không cách). Ví dụ: iSTXKF4K,INmLTx8d"
+        }
+      ]
+    }
+  ]
+}
