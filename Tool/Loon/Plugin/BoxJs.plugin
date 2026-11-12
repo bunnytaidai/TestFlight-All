@@ -1,9 +1,10 @@
-#!name = BoxJs (Quản Lý Đa Tài Khoản Apple ID & APP_ID)
-#!desc = Giao diện web quản lý danh sách nick Apple ID, chuyển đổi phiên tự động và cấu hình APP_ID (http://boxjs.com)
+#!name = BoxJs - Kho Quản Lý Token & Đa Phiên Đăng Nhập
+#!desc = Tạo bảng điều khiển nội bộ tại http://boxjs.com để xem, sao lưu JSON và chuyển đổi nhanh giữa các phiên Token Apple ID / TestFlight.
 #!openUrl = http://boxjs.com
-#!author = chavyleung & Hely-T (v4.6.0.0)
+#!author = chavyleung & bunnytaidai
 #!homepage = https://github.com/bunnytaidai/TestFlight-All
 #!icon = https://raw.githubusercontent.com/Orz-3/mini/master/Color/box.png
+#!date = 2026-11-12 23:25:00
 
 [Rule]
 DOMAIN-SUFFIX, boxjs.com, DIRECT
@@ -13,7 +14,7 @@ DOMAIN-SUFFIX, boxjs.net, DIRECT
 ^https?:\/\/(.+\.)?boxjs\.(com|net) https://boxjs.com 302
 
 [Script]
-http-request ^https?:\/\/(.+\.)?boxjs\.(com|net) script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/boxjs/chavy.boxjs.js, requires-body = true, tag = BoxJs, timeout = 120
+http-request ^https?:\/\/(.+\.)?boxjs\.(com|net) script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/boxjs/chavy.boxjs.js, requires-body=true, timeout=120, tag="BoxJs Panel"
 
-[Mitm]
+[MITM]
 hostname = boxjs.com, *.boxjs.com, boxjs.net, *.boxjs.net
