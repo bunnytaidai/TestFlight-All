@@ -1,21 +1,22 @@
 #!name = Tự Động Tham Gia TestFlight (Google Chrome Beta + Đổi Nick Apple ID)
-#!desc = Tự động lấy Token, tự động xoay vòng đổi nick Apple ID và tự động tham gia Google Chrome beta (LPQmtkUs) cùng mọi link TestFlight trên Loon.
+#!desc = Tự động lấy Token, xoay vòng đổi nick Apple ID và tự động tham gia Google Chrome beta (LPQmtkUs) cùng mọi link TestFlight trên Loon.
 #!openUrl = https://testflight.apple.com/join/LPQmtkUs
 #!author = DecoAri & Hely-T (v4.6.0.0)
 #!homepage = https://github.com/bunnytaidai/TestFlight-All
 #!icon = https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png
-#!input = APP_ID
-#!date = 2026-11-04 18:00:00
+#!date = 2026-11-12 23:25:00
+
+[Argument]
+APP_ID = input, "LPQmtkUs", tag = Mã APP_ID TestFlight, desc = Điền mã APP_ID (cách nhau dấu phẩy, mặc định Chrome Beta: LPQmtkUs)
+CRON_EXP = input, "*/5 * * * * *", tag = Chu kỳ quét Cron, desc = Mặc định 5 giây/lần để săn slot bền bỉ không văng VPN
+ENABLE_CRON = switch, true, tag = Bật tự động săn Slot ngầm, desc = Tắt nút này sau khi đã vào nhóm Beta thành công
 
 [Rule]
 DOMAIN-SUFFIX, testflight.apple.com, DIRECT
 
 [Script]
-# Tự động thu thập Token Apple ID, tự thêm APP_ID và tự đổi nick khi nhấn biểu tượng Tài khoản (/v1/devices)
-http-request ^https?:\/\/testflight\.apple\.com\/(v3\/accounts\/.*\/apps$|join\/.*|v3\/accounts\/.*\/ru\/.*|v1\/devices$) script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/Auto_join_TF.js, tag = Thu thập Token & Đổi Nick Apple ID, argument = [{APP_ID}]
+http-request ^https?:\/\/testflight\.apple\.com\/(v3\/accounts\/.*\/apps$|join\/.*|v3\/accounts\/.*\/ru\/.*|v1\/devices$) script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/Auto_join_TF.js, requires-body=true, timeout=60, tag="Thu thập Token & Đổi Nick Apple ID", argument=[APP_ID]
+cron {CRON_EXP} script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/Auto_join_TF.js, timeout=60, enable={ENABLE_CRON}, tag="Tự động tham gia TestFlight (LPQmtkUs)", argument=[APP_ID]
 
-# Chạy ngầm mỗi giây để tự động vào Google Chrome beta (LPQmtkUs) và xoay vòng qua các nick Apple ID đã lưu
-cron "* * * * * *" script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/Auto_join_TF.js, tag = Tự động tham gia TestFlight (LPQmtkUs), timeout = 60, argument = [{APP_ID}]
-
-[Mitm]
+[MITM]
 hostname = testflight.apple.com
