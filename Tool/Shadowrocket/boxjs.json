@@ -1,8 +1,8 @@
 {
   "id": "hely-t.app.sub",
-  "name": "Đăng ký Hely-T TestFlight Suite (Loon & Shadowrocket v5.2.0.0)",
+  "name": "Đăng ký Hely-T TestFlight Suite (Loon & Shadowrocket v5.4.1.0)",
   "author": "@Hely-T",
-  "description": "Bộ công cụ TestFlight toàn diện v5.2.0.0 (A9 iOS 15.8.8): Tự động vào 5 gói Beta mặc định (Google Chrome LPQmtkUs, Aloha VPN Xh9VNQoA, VilaNet 2mcx1R3I, Notion YSo8aVCS, Notion Calendar Next CzpZHGuS) theo 2 tầng, Tự đảo nick Apple ID, Quản lý gói đăng ký TestFlight/Sandbox (tf-sub.test), Radar canh slot, Giám sát hạn 90 ngày & Chẩn đoán mạng.",
+  "description": "Bộ công cụ TestFlight toàn diện v5.4.1.0 (A9 iOS 15.8.8): Trung tâm All-in-One 3 Tab TF_MultiAccount_Hub v2.0.1.0 (http://tf-hub.test/), Tự động vào 5 gói Beta mặc định, Tự đảo nick Apple ID, Quản lý gói đăng ký TestFlight/Sandbox, Radar canh slot & Giám sát hạn 90 ngày.",
   "icon": "https://avatars.githubusercontent.com/u/170521226?s=400&u=9e2c15d038fb2e92bbbf4f1ba3ff9b0e447efeb6&v=4",
   "repo": "https://github.com/bunnytaidai/TestFlight-All",
   "apps": [
@@ -215,7 +215,7 @@
     },
     {
       "id": "TF_MultiAccount_Hub",
-      "name": "✈️ TF Multi-Account Hub v2 (All-in-One 3 Tab: Link + Đa Nick + Sandbox IAP)",
+      "name": "✈️ TF Multi-Account Hub v2.0.1.0 (All-in-One 3 Tab: Link + Đa Nick + Sandbox IAP)",
       "keys": [
         "TF_HUB_ACCOUNTS",
         "TF_HUB_APPLIST",

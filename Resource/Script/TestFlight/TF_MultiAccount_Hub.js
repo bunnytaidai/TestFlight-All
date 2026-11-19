@@ -1,6 +1,6 @@
 /**
  * TF_MultiAccount_Hub.js — Trung Tâm All-in-One 3 Tab (NobyDa + iRingo + CRUD Link + Batch Actions + StoreKit 1/2 Sandbox)
- * Phiên bản: 2.0.0.0 — Tương thích 100% Loon (.plugin) & Shadowrocket (.sgmodule), tối ưu RAM cho A9 iOS 15.8.8 (SSL Kill Switch 3)
+ * Phiên bản: 2.0.1.0 — Tương thích 100% Loon (.plugin) & Shadowrocket (.sgmodule), tối ưu RAM cho A9 iOS 15.8.8 (SSL Kill Switch 3)
  * Giao diện Web nội bộ 3 Tab: http://tf-hub.test/ | Đồng bộ BoxJs: TF_HUB_*
  * - Tab 1: Quản lý Thêm / Sửa / Xóa / Kiểm tra trạng thái Link TestFlight + Bắn hàng loạt nick tham gia
  * - Tab 2: Kho Đa Tài Khoản Apple ID (UUID + 3 Token), Nuôi Keep-Alive chống die 401, Tráo MERGE/PIN, Quét cập nhật & Lệnh /install, Lách iOS cũ (modBuild) & Phá vùng Storefront
@@ -8,7 +8,7 @@
  */
 'use strict';
 
-const HUB_VERSION = '2.0.0.0';
+const HUB_VERSION = '2.0.1.0';
 const HUB_HOST = 'tf-hub.test';
 const TF_ORIGIN = 'https://testflight.apple.com';
 

@@ -1,10 +1,11 @@
-#!name = ✈️ TF Multi-Account Hub v2 (All-in-One 3 Tab: Link + Đa Nick + Sandbox IAP)
+#!name = ✈️ TF Multi-Account Hub v2.0.1.0 (All-in-One 3 Tab: Link + Đa Nick + Sandbox IAP)
 #!desc = Trung tâm All-in-One 3 Tab cho Loon (tối ưu A9 iOS 15.8.8): (1) Quản lý CRUD & kiểm tra trạng thái Link TestFlight + bắn hàng loạt nick tham gia; (2) Lưu & tráo nhiều Apple ID (MERGE/PIN), nuôi token Keep-Alive, quét cập nhật, gửi /install, lách iOS cũ & phá vùng; (3) Theo dõi chỉ đọc gói đăng ký Sandbox IAP (StoreKit 1 & 2) theo từng nick + nhắc gia hạn. Web UI: http://tf-hub.test/ (đồng bộ BoxJs).
 #!openUrl = http://tf-hub.test/
-#!author = Hely-T & Antigravity (v2.0.0.0)
+#!author = Hely-T & Antigravity (v2.0.1.0)
 #!homepage = https://github.com/bunnytaidai/TestFlight-All
 #!icon = https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png
-#!date = 2026-11-19 14:12:00
+#!version = 2.0.1.0
+#!date = 2026-11-19 14:19:00
 
 [General]
 skip-proxy = iosapps.itunes.apple.com

@@ -1,10 +1,10 @@
-# 📘 HƯỚNG DẪN SỬ DỤNG TRỌN BỘ TESTFLIGHT CHO LOON & SHADOWROCKET (`version.5.4.0.0`)
+# 📘 HƯỚNG DẪN SỬ DỤNG TRỌN BỘ TESTFLIGHT CHO LOON & SHADOWROCKET (`version.5.4.1.0`)
 
 > **Tối ưu riêng cho:** iPhone chip A9 (`iPhone 6s / 6s Plus / SE 1`) chạy **iOS 15.8.8 Rootless (`/var/jb`) + SSL Kill Switch 3**, giữ bộ nhớ `NetworkExtension` nhẹ gọn.
 
 ---
 
-## ⭐ 0. TRUNG TÂM ALL-IN-ONE 3 TAB (`TF_MultiAccount_Hub v2.0.0.0` — KHUYÊN DÙNG CHÍNH)
+## ⭐ 0. TRUNG TÂM ALL-IN-ONE 3 TAB (`TF_MultiAccount_Hub v2.0.1.0` — KHUYÊN DÙNG CHÍNH)
 
 Hợp nhất **`NobyDa` + `iRingo` + `CRUD Link TestFlight` + `Batch Actions` + `StoreKit 1/2 Sandbox`** vào **đúng 1 Plugin Loon / 1 Module Shadowrocket duy nhất** *(lưu ý: tắt các plugin TestFlight/NobyDa/iRingo riêng lẻ trước khi bật để tránh xung đột MITM)*:
 
