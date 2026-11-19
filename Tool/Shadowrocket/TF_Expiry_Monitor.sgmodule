@@ -1,0 +1,25 @@
+#!name=⏳ Giám Sát Hạn 90 Ngày & Build Mới TestFlight (Chỉ Đọc — tf-status.test)
+#!desc=Theo dõi hạn dùng 90 ngày của toàn bộ ứng dụng Beta trong TestFlight ở chế độ Chỉ Đọc (Read-Only), báo ngay khi có Build mới hoặc sắp hết hạn. Xem bảng đếm ngược tại http://tf-status.test/
+#!openUrl=http://tf-status.test/
+#!author=Hely-T & Antigravity (v5.0.0.0)
+#!homepage=https://github.com/bunnytaidai/TestFlight-All
+#!icon=https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png
+#!arguments=WarnDays:7
+#!arguments-desc=WarnDays: Số ngày còn lại trước khi hết hạn 90 ngày để phát cảnh báo (Mặc định: 7 ngày).
+
+[Rule]
+DOMAIN,tf-status.test,DIRECT
+DOMAIN-KEYWORD,testflight.apple.com,DIRECT
+
+[Host]
+tf-status.test = 127.0.0.1
+
+[Script]
+TF_Expiry_Web = type=http-request,pattern=^http:\/\/tf-status\.test(\/.*)?$,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Expiry_Monitor.js,argument=WarnDays={{{WarnDays}}},timeout=20
+TF_Expiry_ReadOnly = type=http-response,pattern=^https?:\/\/testflight\.apple\.com\/v\d\/accounts\/[0-9a-fA-F-]{36}\/apps(\?.*)?$,requires-body=1,max-size=-1,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Expiry_Monitor.js,argument=WarnDays={{{WarnDays}}},timeout=20
+TF_Expiry_Daily = type=cron,cronexp="0 0 9 * * *",script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Expiry_Monitor.js,argument=WarnDays={{{WarnDays}}},timeout=20
+
+[MITM]
+hostname = %APPEND% testflight.apple.com
+enable = true
+h2 = true

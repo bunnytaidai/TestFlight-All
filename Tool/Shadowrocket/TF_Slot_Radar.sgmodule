@@ -1,0 +1,19 @@
+#!name=📡 Radar Canh Slot TestFlight Công Khai (Bộ 5 App Mặc Định — tf-radar.test)
+#!desc=Quét trạng thái Slot công khai (OPEN / FULL) trực tiếp từ https://testflight.apple.com/join/<CODE> mà KHÔNG cần Token Apple ID (Mặc định sẵn: LPQmtkUs, Xh9VNQoA, 2mcx1R3I, YSo8aVCS, CzpZHGuS). Báo đẩy mở thẳng itms-beta:// ngay khi có slot và tích hợp Web Dashboard tại http://tf-radar.test/
+#!openUrl=http://tf-radar.test/
+#!author=Hely-T & Antigravity (v5.2.0.0)
+#!homepage=https://github.com/bunnytaidai/TestFlight-All
+#!icon=https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png
+#!arguments=RADAR_IDS:LPQmtkUs|Xh9VNQoA|2mcx1R3I|YSo8aVCS|CzpZHGuS
+#!arguments-desc=RADAR_IDS: Danh sách mã TestFlight cần quét công khai (Mặc định: LPQmtkUs|Xh9VNQoA|2mcx1R3I|YSo8aVCS|CzpZHGuS — Ngăn cách nhiều mã trong tham số Module bằng dấu '|').
+
+[Rule]
+DOMAIN,tf-radar.test,DIRECT
+DOMAIN-KEYWORD,testflight.apple.com,DIRECT
+
+[Host]
+tf-radar.test = 127.0.0.1
+
+[Script]
+TF_Radar_Web = type=http-request,pattern=^http:\/\/tf-radar\.test(\/.*)?$,requires-body=1,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Slot_Radar.js,argument=RADAR_IDS={{{RADAR_IDS}}},timeout=25
+TF_Radar_Cron = type=cron,cronexp="*/30 * * * * *",script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Slot_Radar.js,argument=RADAR_IDS={{{RADAR_IDS}}},timeout=25

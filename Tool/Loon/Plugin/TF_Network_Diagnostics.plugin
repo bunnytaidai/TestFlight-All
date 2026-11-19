@@ -1,0 +1,31 @@
+#!name = Chẩn Đoán Kết Nối, Tải Nhanh CDN & Kiểm Định MitM TestFlight (tf-diag.test)
+#!desc = Tối ưu định tuyến DIRECT cho toàn bộ cụm máy chủ Apple Beta CDN (itms5..itms11), đo độ trễ thực tế và bắt bệnh lỗi chứng chỉ CA / HTTP2 / 401 / 429 (tự động che khóa nhạy cảm) tại http://tf-diag.test/
+#!openUrl = http://tf-diag.test/
+#!author = Hely-T & Antigravity (v5.0.0.0)
+#!homepage = https://github.com/bunnytaidai/TestFlight-All
+#!icon = https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png
+#!date = 2026-11-15 23:20:00
+
+[General]
+force-http-engine-hosts = tf-diag.test
+
+[Rule]
+DOMAIN, tf-diag.test, DIRECT
+DOMAIN-KEYWORD, testflight.apple.com, DIRECT
+DOMAIN-SUFFIX, beta.apple.com, DIRECT
+DOMAIN-SUFFIX, iosapps.itunes.apple.com, DIRECT
+DOMAIN-SUFFIX, osxapps.itunes.apple.com, DIRECT
+DOMAIN-SUFFIX, mzstatic.com, DIRECT
+
+[Host]
+tf-diag.test = 127.0.0.1
+
+[Script]
+# Bảng Chẩn Đoán Sức Khỏe Mạng & Chứng Chỉ MitM tại http://tf-diag.test/
+http-request ^http:\/\/tf-diag\.test(\/.*)?$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Network_Diagnostics.js, timeout = 20, tag = Bảng Chẩn Đoán Mạng (tf-diag.test)
+
+# Ghi nhận chỉ đọc mã trạng thái HTTP từ TestFlight (che toàn bộ khóa phiên nhạy cảm)
+http-response ^https?:\/\/testflight\.apple\.com\/v\d\/.* script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Network_Diagnostics.js, timeout = 15, tag = Nhật Ký Chẩn Đoán TestFlight (Redacted)
+
+[Mitm]
+hostname = testflight.apple.com

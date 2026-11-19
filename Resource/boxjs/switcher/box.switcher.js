@@ -4,10 +4,21 @@ $.KEY_curSessions = 'chavy_boxjs_cur_sessions'
 $.KEY_tfAccounts = 'TF_ACCOUNTS'
 $.CFG_isSilent = $.getdata('CFG_BoxSwitcher_isSilent')
 
+const _rawSwitcherArg = globalThis.$intent?.parameter ?? globalThis.$argument
 $.appIds =
-  (globalThis.$intent?.parameter ?? globalThis.$argument)?.split(',').map(s => s.trim()).filter(Boolean) ?? []
+  typeof _rawSwitcherArg === 'string'
+    ? _rawSwitcherArg.split(',').map((s) => s.trim()).filter(Boolean)
+    : typeof _rawSwitcherArg === 'object' && _rawSwitcherArg !== null && typeof _rawSwitcherArg.APPIDS === 'string'
+      ? _rawSwitcherArg.APPIDS.split(',').map((s) => s.trim()).filter(Boolean)
+      : []
 
 !(async () => {
+  const lastSwitchTs = parseInt($.getdata('TF_LAST_SWITCH_TS') || '0', 10)
+  if (!isNaN(lastSwitchTs) && Date.now() - lastSwitchTs < 2000) {
+    $.log('⏳ Bỏ qua đổi nick trùng lặp trong 2000ms (Debounce Lock).')
+    return
+  }
+  $.setdata(String(Date.now()), 'TF_LAST_SWITCH_TS')
   await execSwitch()
   await showmsg()
 })()
@@ -73,7 +84,7 @@ function syncActiveAppleIdCache(switchkeys) {
 
     const existingAppIds = $.getdata('APP_ID') || ''
     if (!existingAppIds.trim() && $.getdata('TF_DEFAULT_CHROME_JOINED') !== 'true') {
-      $.setdata('LPQmtkUs', 'APP_ID')
+      $.setdata('rqvYCYOp,YSo8aVCS,m2kxP5cw,LPQmtkUs,Xh9VNQoA', 'APP_ID')
     }
   } catch (e) {}
 }
@@ -113,6 +124,18 @@ function execSwitch() {
       let curSessionIdx = app.sessions.findIndex(
         (session) => session.id === curSessions[appId]
       )
+      if (curSessionIdx === -1 && appId === 'Auto_join_TF') {
+        const activeKey = $.getdata('key')
+        if (activeKey) {
+          curSessionIdx = app.sessions.findIndex(
+            (s) => Array.isArray(s.datas) && s.datas.some((d) => d.key === 'key' && d.val === activeKey)
+          )
+        }
+        if (curSessionIdx === -1) {
+          const savedIdx = parseInt($.getdata('TF_ACTIVE_ACCOUNT_IDX') || '0', 10)
+          curSessionIdx = (!isNaN(savedIdx) && savedIdx >= 0 && savedIdx < app.sessions.length) ? savedIdx : 0
+        }
+      }
       if (curSessionIdx === -1) {
         curSessionIdx = app.sessions.length - 1
       }

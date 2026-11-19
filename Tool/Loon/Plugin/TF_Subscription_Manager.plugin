@@ -1,0 +1,32 @@
+#!name = Quản Lý Gói Đăng Ký TestFlight & Đảo Nick Apple ID (tf-sub.test)
+#!desc = Quan sát chỉ đọc (Read-Only) các gói đăng ký TestFlight / Sandbox đã mua theo từng nick Apple ID, cho phép chọn cố định gói cần theo dõi gia hạn trên bảng web nội bộ http://tf-sub.test/ và nhắc gia hạn 1 chạm khi hết chu kỳ Sandbox.
+#!openUrl = http://tf-sub.test/
+#!author = Hely-T & Antigravity (v5.2.0.0)
+#!homepage = https://github.com/bunnytaidai/TestFlight-All
+#!icon = https://raw.githubusercontent.com/Orz-3/mini/master/Color/appstore.png
+#!date = 2026-11-19 11:15:00
+
+[General]
+force-http-engine-hosts = tf-sub.test
+
+[Rule]
+DOMAIN, tf-sub.test, DIRECT
+DOMAIN-SUFFIX, sandbox.itunes.apple.com, DIRECT
+DOMAIN-SUFFIX, mzstorekit-sb.itunes.apple.com, DIRECT
+DOMAIN-SUFFIX, api.storekit-sandbox.itunes.apple.com, DIRECT
+
+[Host]
+tf-sub.test = 127.0.0.1
+
+[Script]
+# Bảng điều khiển Web nội bộ quản lý gói đăng ký & đảo nick Apple ID (0ms trên Safari)
+http-request ^http:\/\/tf-sub\.test(\/.*)?$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Subscription_Manager.js, requires-body = true, timeout = 20, tag = Bảng Quản Lý Gói Đăng Ký (tf-sub.test)
+
+# Quan sát chỉ đọc phản hồi gói đăng ký TestFlight / Sandbox (không sửa biên lai)
+http-response ^https?:\/\/(sandbox\.itunes\.apple\.com|mzstorekit-sb\.itunes\.apple\.com|api\.storekit-sandbox\.itunes\.apple\.com)\/.* script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Subscription_Manager.js, requires-body = true, timeout = 25, tag = Ghi Nhận Gói Đăng Ký TestFlight (Chỉ Đọc)
+
+# Kiểm tra định kỳ mỗi 15 phút hạn các gói đăng ký đã chọn & nhắc gia hạn 1 chạm
+cron "0 */15 * * * *" script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Subscription_Manager.js, timeout = 20, tag = Kiểm Tra Hạn Gia Hạn TestFlight
+
+[Mitm]
+hostname = sandbox.itunes.apple.com, mzstorekit-sb.itunes.apple.com, api.storekit-sandbox.itunes.apple.com

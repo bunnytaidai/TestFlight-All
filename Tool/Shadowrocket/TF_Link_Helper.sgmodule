@@ -1,0 +1,24 @@
+#!name=🔗 Trợ Lý Bắt Link & Quản Lý Hàng Đợi TestFlight Offline (tf-link.test)
+#!desc=Tự động gom mọi link testflight.apple.com/join/XXXX vào hàng đợi săn, hỗ trợ chuyển hướng thẳng sang itms-beta:// mở ngay app TestFlight và quản lý hàng loạt link offline tại http://tf-link.test/
+#!openUrl=http://tf-link.test/
+#!author=Hely-T & Antigravity (v5.0.0.0)
+#!homepage=https://github.com/bunnytaidai/TestFlight-All
+#!icon=https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png
+#!arguments=AutoOpenApp:false
+#!arguments-desc=AutoOpenApp: Đặt thành true nếu muốn bấm link Safari tự động nhảy thẳng vào ứng dụng TestFlight (itms-beta://).
+
+[Rule]
+DOMAIN,tf-link.test,DIRECT
+DOMAIN-KEYWORD,testflight.apple.com,DIRECT
+
+[Host]
+tf-link.test = 127.0.0.1
+
+[Script]
+TF_Link_Web = type=http-request,pattern=^http:\/\/tf-link\.test(\/.*)?$,requires-body=1,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Link_Helper.js,argument=AutoOpenApp={{{AutoOpenApp}}},timeout=20
+TF_Link_Capture = type=http-request,pattern=^https?:\/\/testflight\.apple\.com\/join\/[A-Za-z0-9]{5,12},script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Link_Helper.js,argument=AutoOpenApp={{{AutoOpenApp}}},timeout=15
+
+[MITM]
+hostname = %APPEND% testflight.apple.com
+enable = true
+h2 = true

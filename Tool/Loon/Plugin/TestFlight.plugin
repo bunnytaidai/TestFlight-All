@@ -1,34 +1,31 @@
-#!name = TestFlight Đa Tài Khoản & Tự Động Tham Gia Google Chrome Beta (All-In-One Loon)
-#!desc = Tích hợp trọn bộ cho Loon: Tự động tham gia Google Chrome beta (LPQmtkUs), lưu nhiều tài khoản Apple ID, tự động đổi nick khi bấm biểu tượng Tài khoản và tải nhanh CDN.
+#!name = TestFlight Đa Tài Khoản, Mở Khóa Thiết Bị & Tải Nhanh CDN (Loon)
+#!desc = Lưu giữ phiên nhiều tài khoản Apple ID, tự động đổi nick khi bấm biểu tượng Tài khoản (/v1/devices), mở khóa tương thích iOS/iPadOS/macOS và tối ưu tải CDN.
 #!openUrl = https://testflight.apple.com/join/LPQmtkUs
-#!author = VirgilClyne & DecoAri & Hely-T (v4.6.0.0)
+#!author = VirgilClyne & DecoAri & Hely-T (v5.0.0.0)
 #!homepage = https://github.com/bunnytaidai/TestFlight-All
 #!icon = https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png
-#!input = APP_ID
-#!select = Khu vực Storefront, AUTO, VN, US, SG, JP, TW, GB
-#!select = Đa tài khoản Apple ID, true, false
-#!select = Tương thích mọi thiết bị, true, false
-#!date = 2026-11-04 18:00:00
+#!select = Switch, true, false
+#!select = CountryCode, US, VN, AUTO, SG, JP, TW, GB
+#!select = MultiAccount, true, false
+#!select = Universal, true, false
+#!date = 2026-11-15 23:20:00
 
 [Rule]
-DOMAIN-SUFFIX, testflight.apple.com, DIRECT
+DOMAIN-KEYWORD, testflight.apple.com, DIRECT
+DOMAIN-SUFFIX, beta.apple.com, DIRECT
 
 [Script]
 # Tự động đổi nick Apple ID khi chạm biểu tượng Tài khoản góc phải trong ứng dụng TestFlight
-http-request ^https?:\/\/testflight\.apple\.com\/v1\/devices$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/boxjs/switcher/box.switcher.js, timeout = 60, tag = Đổi Nick Apple ID (BoxSwitcher)
+http-request ^https?:\/\/testflight\.apple\.com\/v1\/devices(\?.*)?$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/boxjs/switcher/box.switcher.js, timeout = 25, tag = Đổi Nick Apple ID (BoxSwitcher)
 
-# Giữ phiên Đa Tài Khoản Apple ID & mở khóa vùng
-http-request ^https?:\/\/testflight\.apple\.com\/v\d\/(session\/authenticate|properties\/testflight|accounts\/.*|messages\/.*|apps\/.*)$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/FileFastClick/TestFlight.request.viethoa.js, requires-body = true, timeout = 60, tag = TestFlight Multi-Account Request, argument = Switch="true"&CountryCode="US"&MultiAccount="true"&Universal="true"
+# Giữ phiên Đa Tài Khoản Apple ID & mở khóa vùng Storefront
+http-request ^https?:\/\/testflight\.apple\.com\/v\d\/(session\/authenticate|properties\/testflight|accounts\/.*|messages\/.*|apps\/.*)$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/FileFastClick/TestFlight.request.viethoa.js, requires-body = true, timeout = 30, tag = TestFlight Multi-Account Request, argument = [Switch, CountryCode, MultiAccount, Universal]
 
 # Mở khóa giới hạn thiết bị (Universal) & đồng bộ bộ đệm Apple ID
-http-response ^https?:\/\/testflight\.apple\.com\/v\d\/(session\/authenticate|accounts\/.*\/apps.*)$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/FileFastClick/TestFlight.response.viethoa.js, requires-body = true, timeout = 60, tag = TestFlight Multi-Account Response, argument = Switch="true"&CountryCode="US"&MultiAccount="true"&Universal="true"
+http-response ^https?:\/\/testflight\.apple\.com\/v\d\/(session\/authenticate|accounts\/.*\/apps.*)$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/FileFastClick/TestFlight.response.viethoa.js, requires-body = true, timeout = 30, tag = TestFlight Multi-Account Response, argument = [Switch, CountryCode, MultiAccount, Universal]
 
 # Tải ứng dụng TestFlight tốc độ cao từ Apple CDN
-http-request ^https?:\/\/testflight\.apple\.com\/v3\/accounts\/.*\/apps\/.*\/builds\/.*\/install$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Download.js, requires-body = true, timeout = 60, tag = TestFlight Tải Nhanh CDN
-
-# Tự động bắt Token, lưu APP_ID và tự động vào Google Chrome beta (LPQmtkUs)
-http-request ^https?:\/\/testflight\.apple\.com\/(v3\/accounts\/.*\/apps$|join\/.*|v3\/accounts\/.*\/ru\/.*|v1\/devices$) script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/Auto_join_TF.js, tag = Tự động lấy Token & APP_ID, argument = [{APP_ID}]
-cron "* * * * * *" script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/Auto_join_TF.js, tag = Tự động tham gia TestFlight (LPQmtkUs), timeout = 60, argument = [{APP_ID}]
+http-request ^https?:\/\/testflight\.apple\.com\/v3\/accounts\/.*\/apps\/.*\/builds\/.*\/install$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Download.js, requires-body = true, timeout = 25, tag = TestFlight Tải Nhanh CDN, argument = [CountryCode]
 
 [Mitm]
 hostname = testflight.apple.com

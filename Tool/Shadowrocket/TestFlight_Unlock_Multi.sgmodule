@@ -1,22 +1,26 @@
-#!name=TestFlight Đa Tài Khoản & Tự Động Đổi Nick Apple ID
-#!desc=Mở khóa giới hạn thiết bị TestFlight (iOS/iPadOS/macOS), lưu nhiều tài khoản Apple ID và tự động chuyển đổi nick khi bấm biểu tượng Tài khoản góc phải trong ứng dụng TestFlight.
-#!author=VirgilClyne & Hely-T (v4.6.0.0)
+#!name= TestFlight Đa Tài Khoản, Mở Khóa Thiết Bị & Tải Nhanh CDN
+#!desc=Mở khóa giới hạn thiết bị TestFlight (iOS/iPadOS/macOS), mở khóa vùng Storefront, lưu nhiều tài khoản Apple ID và tự chuyển đổi nick khi bấm biểu tượng Tài khoản (/v1/devices).
+#!openUrl=https://testflight.apple.com/join/LPQmtkUs
+#!author=VirgilClyne & Hely-T (v5.0.0.0)
+#!homepage=https://github.com/bunnytaidai/TestFlight-All
+#!icon=https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png
 
 [Rule]
-DOMAIN-SUFFIX,testflight.apple.com,DIRECT
+DOMAIN-KEYWORD,testflight.apple.com,DIRECT
+DOMAIN-SUFFIX,beta.apple.com,DIRECT
 
 [Script]
 # Tự động chuyển đổi phiên Apple ID (BoxSwitcher + TF_ACCOUNTS) khi nhấn nút Tài khoản trong TestFlight
-TF_Switch_Session = type=http-request,pattern=^https?:\/\/testflight\.apple\.com\/v1\/devices$,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/boxjs/switcher/box.switcher.js,timeout=60
+TF_Switch_Session = type=http-request,pattern=^https?:\/\/testflight\.apple\.com\/v1\/devices(\?.*)?$,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/boxjs/switcher/box.switcher.js,timeout=25
 
-# Giữ đồng bộ MultiAccount & thay thế UUID tài khoản tự động không cần đăng nhập lại
-TF_MultiAccount_Req = type=http-request,pattern=^https?:\/\/testflight\.apple\.com\/v\d\/(accounts|messages|apps)\/.*$,requires-body=1,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/FileFastClick/TestFlight.request.viethoa.js,argument=Switch="true"&CountryCode="US"&MultiAccount="true"&Universal="true",timeout=60
+# Giữ đồng bộ MultiAccount, mở khóa vùng Storefront (/v1/session/authenticate) & thay thế UUID tài khoản tự động
+TF_MultiAccount_Req = type=http-request,pattern=^https?:\/\/testflight\.apple\.com\/v\d\/(session\/authenticate|properties\/testflight|accounts\/.*|messages\/.*|apps\/.*)$,requires-body=1,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/FileFastClick/TestFlight.request.viethoa.js,argument=Switch="true"&CountryCode="US"&MultiAccount="true"&Universal="true",timeout=30
 
 # Mở khóa tương thích mọi thiết bị (Universal) & lưu bộ đệm phiên Apple ID
-TF_MultiAccount_Resp = type=http-response,pattern=^https?:\/\/testflight\.apple\.com\/v\d\/(session\/authenticate|accounts\/.*\/apps.*)$,requires-body=1,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/FileFastClick/TestFlight.response.viethoa.js,argument=Switch="true"&CountryCode="US"&MultiAccount="true"&Universal="true",timeout=60
+TF_MultiAccount_Resp = type=http-response,pattern=^https?:\/\/testflight\.apple\.com\/v\d\/(session\/authenticate|accounts\/.*\/apps.*)$,requires-body=1,max-size=-1,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/FileFastClick/TestFlight.response.viethoa.js,argument=Switch="true"&CountryCode="US"&MultiAccount="true"&Universal="true",timeout=30
 
 # Tải ứng dụng TestFlight tốc độ cao trực tiếp từ Apple CDN
-TF_Fast_Download = type=http-request,pattern=^https?:\/\/testflight\.apple\.com\/v3\/accounts\/.*\/apps\/.*\/builds\/.*\/install$,requires-body=1,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Download.js,timeout=60
+TF_Fast_Download = type=http-request,pattern=^https?:\/\/testflight\.apple\.com\/v3\/accounts\/.*\/apps\/.*\/builds\/.*\/install$,requires-body=1,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Download.js,timeout=25
 
 [MITM]
 hostname = %APPEND% testflight.apple.com

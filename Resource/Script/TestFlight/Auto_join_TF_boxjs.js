@@ -1,14 +1,33 @@
 /*
  * Script: Auto_join_TF_boxjs.js (BoxJS + Loon + Shadowrocket + Surge Multi-Account Edition)
- * Tác giả gốc: Hely-T
- * Bản nâng cấp Toàn Diện cho Loon & Shadowrocket ($loon / $rocket) - version.4.6.0.0:
- * 1. Tích hợp sẵn link mục tiêu mặc định: Google Chrome beta (https://testflight.apple.com/join/LPQmtkUs -> APP_ID: LPQmtkUs).
- * 2. Tự động bắt & lưu trữ NHIỀU tài khoản Apple ID (Multi-Account Pool: TF_ACCOUNTS & chavy_boxjs_sessions) khi mở app TestFlight hoặc đổi nick.
- * 3. Tự động xoay vòng / đổi nick Apple ID (Auto-Switch Account) để đăng ký gói beta TestFlight cho từng nick hoặc khi chạm biểu tượng Tài khoản (/v1/devices).
+ * Tác giả gốc: DecoAri & Hely-T
+ * Bản nâng cấp Thực Chiến Toàn Diện cho Loon & Shadowrocket ($loon / $rocket) - version.5.1.0.0:
+ * 1. Tích hợp sẵn 5 link mục tiêu mặc định tự động tham gia:
+ *    - Microsoft Edge beta (rqvYCYOp)
+ *    - Notion: Ghi chép, Nhiệm vụ, AI beta (YSo8aVCS)
+ *    - Notion Agents beta (m2kxP5cw)
+ *    - Google Chrome beta (LPQmtkUs)
+ *    - Aloha Browser – Private VPN beta (Xh9VNQoA)
+ * 2. Cơ chế Săn Slot Thông Minh 2 Tầng (Public HTML Pre-Check + Multi-Account Auto Accept), tương thích 100% với BoxJS và http://tf.boxjs.com/.
+ * 3. Bảo vệ dữ liệu tuyệt đối: chỉ xóa APP_ID khi HTTP 404 thật sự, chống lỗi xóa nhầm khi rớt mạng / HTTP 504.
  */
 
-const DEFAULT_CHROME_BETA_ID = 'LPQmtkUs'; // Tham gia Google Chrome beta - https://testflight.apple.com/join/LPQmtkUs
+const DEFAULT_BETA_TARGETS = {
+    rqvYCYOp: 'Microsoft Edge beta',
+    YSo8aVCS: 'Notion: Ghi chép, Nhiệm vụ, AI beta',
+    m2kxP5cw: 'Notion Agents beta',
+    LPQmtkUs: 'Google Chrome beta',
+    Xh9VNQoA: 'Aloha Browser – Private VPN beta'
+};
+const DEFAULT_BETA_IDS = Object.keys(DEFAULT_BETA_TARGETS);
+const DEFAULT_BETA_CSV = DEFAULT_BETA_IDS.join(',');
+const DEFAULT_CHROME_BETA_ID = 'LPQmtkUs';
 const DEFAULT_UA = 'TestFlight/3.5.0 (iPhone; iOS 17.7; Scale/3.00)';
+const PUBLIC_WEB_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+
+function getDefaultAppName(code) {
+    return DEFAULT_BETA_TARGETS[code] || code;
+}
 
 function getPlatformName() {
     if (typeof $loon !== 'undefined') return 'Loon';
@@ -43,21 +62,77 @@ function writeStore(val, key) {
     return false;
 }
 
-function sendNotify(title, subtitle, message) {
+function sendNotify(title, subtitle, message, openUrl) {
     if (typeof $notification !== 'undefined' && $notification.post) {
-        $notification.post(title, subtitle || '', message || '');
+        if (openUrl) {
+            const attach = PLATFORM === 'Loon'
+                ? { openUrl: openUrl }
+                : (PLATFORM === 'Shadowrocket' ? openUrl : { url: openUrl });
+            $notification.post(title, subtitle || '', message || '', attach);
+        } else {
+            $notification.post(title, subtitle || '', message || '');
+        }
     } else if (typeof $notify !== 'undefined') {
-        $notify(title, subtitle || '', message || '');
+        if (openUrl) {
+            $notify(title, subtitle || '', message || '', { 'open-url': openUrl });
+        } else {
+            $notify(title, subtitle || '', message || '');
+        }
     }
     console.log(`[${PLATFORM}-TF] ${title} | ${subtitle || ''} | ${message || ''}`);
+}
+
+function extractSingleAppId(token) {
+    if (!token) return '';
+    const cleaned = String(token).trim();
+    const joinMatch = cleaned.match(/(?:testflight\.apple\.com\/join\/|\/ru\/)([A-Za-z0-9]{5,12})/i);
+    if (joinMatch && joinMatch[1]) return joinMatch[1];
+    const stripped = cleaned.replace(/[\[\]\{\}"'\s]/g, '');
+    if (/^[A-Za-z0-9]{5,12}$/.test(stripped) && !/^(APP_ID|null|undefined|true|false)$/i.test(stripped)) {
+        return stripped;
+    }
+    return '';
+}
+
+function sanitizeAppIdList(rawStr) {
+    if (!rawStr) return '';
+    const parts = String(rawStr).split(/[,;|+\s\n]+/);
+    const valid = [];
+    for (const p of parts) {
+        const code = extractSingleAppId(p);
+        if (code && !valid.includes(code)) valid.push(code);
+    }
+    return valid.join(',');
+}
+
+function getRemovedAppIds() {
+    const raw = readStore('TF_REMOVED_IDS', '');
+    return new Set(raw ? String(raw).split(/[,;|+\s]+/).filter(Boolean) : []);
+}
+
+function markAppIdRemoved(id) {
+    if (!id) return;
+    const set = getRemovedAppIds();
+    set.add(id);
+    writeStore(Array.from(set).join(','), 'TF_REMOVED_IDS');
+}
+
+function unmarkAppIdRemoved(id) {
+    if (!id) return;
+    const set = getRemovedAppIds();
+    if (set.delete(id)) {
+        writeStore(Array.from(set).join(','), 'TF_REMOVED_IDS');
+    }
 }
 
 function parseArgumentAppIds() {
     if (typeof $argument === 'undefined' || !$argument) return '';
     if (typeof $argument === 'object') {
-        return String($argument.APP_ID || $argument.app_id || '').trim();
+        const candidate = $argument.APP_ID || $argument.app_id || '';
+        return sanitizeAppIdList(candidate);
     }
     const raw = String($argument).trim();
+    if (!raw || raw === '[APP_ID]' || raw === '{{{APP_ID}}}') return '';
     if (raw.includes('=')) {
         const pairs = Object.fromEntries(
             raw.split('&').map(part => {
@@ -66,9 +141,9 @@ function parseArgumentAppIds() {
                 return [part.slice(0, idx).trim(), part.slice(idx + 1).replace(/^"|"$/g, '').trim()];
             })
         );
-        if (pairs.APP_ID !== undefined) return pairs.APP_ID;
+        if (pairs.APP_ID !== undefined) return sanitizeAppIdList(pairs.APP_ID);
     }
-    return raw.replace(/^APP_ID=/i, '').trim();
+    return sanitizeAppIdList(raw.replace(/^APP_ID=/i, '').trim());
 }
 
 function loadAccountsPool() {
@@ -82,6 +157,105 @@ function loadAccountsPool() {
 
 function saveAccountsPool(pool) {
     writeStore(JSON.stringify(pool), 'TF_ACCOUNTS');
+}
+
+function loadJsonStore(key, fallbackObj) {
+    try {
+        const raw = readStore(key, '');
+        if (!raw) return fallbackObj;
+        const parsed = JSON.parse(raw);
+        return (parsed && typeof parsed === 'object') ? parsed : fallbackObj;
+    } catch (e) {
+        return fallbackObj;
+    }
+}
+
+function decodeHtmlEntities(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&#x27;/gi, "'")
+        .replace(/&nbsp;/g, ' ')
+        .trim();
+}
+
+function parsePublicJoinHtml(code, status, html) {
+    const nowIso = new Date().toISOString();
+    if (status === 404) {
+        return { code, status: 'INVALID', appName: code, iconUrl: '', message: 'Liên kết không tồn tại (HTTP 404)', checkedAt: nowIso };
+    }
+    if (status !== 200 || !html) {
+        return { code, status: 'UNKNOWN', appName: code, iconUrl: '', message: `HTTP ${status}`, checkedAt: nowIso };
+    }
+
+    let appName = getDefaultAppName(code);
+    const titleMatch = html.match(/<title>\s*(?:Join the\s+|Tham gia\s+|加入\s*)?(.+?)\s*-\s*TestFlight(?:\s*-\s*Apple)?\s*<\/title>/i);
+    if (titleMatch && titleMatch[1]) {
+        appName = decodeHtmlEntities(titleMatch[1]);
+    }
+
+    let iconUrl = '';
+    const iconMatch = html.match(/background-image:\s*url\((https:\/\/[^)]+mzstatic\.com[^)]+)\)/i)
+        || html.match(/meta\s+property="og:image"\s+content="(https:\/\/[^"]+)"/i);
+    if (iconMatch && iconMatch[1]) {
+        iconUrl = iconMatch[1].replace(/['"]/g, '').trim();
+    }
+
+    const statusBlockMatch = html.match(/<div\s+class="beta-status"[^>]*>[\s\S]*?<span>([\s\S]*?)<\/span>/i);
+    const statusMsg = statusBlockMatch && statusBlockMatch[1]
+        ? decodeHtmlEntities(statusBlockMatch[1].replace(/<[^>]+>/g, ' '))
+        : '';
+
+    if (/doesn't exist|not found|link is invalid|isn't valid|không tồn tại|không hợp lệ|链接无效|不存在/i.test(statusMsg || html)) {
+        return { code, status: 'INVALID', appName, iconUrl, message: statusMsg || 'Liên kết TestFlight hết hiệu lực', checkedAt: nowIso };
+    }
+
+    if (/this beta is full|beta is full|not accepting any new testers|đã đầy|không nhận thêm|名额已满|不接受任何新测试员/i.test(statusMsg)) {
+        return { code, status: 'FULL', appName, iconUrl, message: statusMsg, checkedAt: nowIso };
+    }
+
+    if (/start testing|tap\s+accept|open in testflight|join the[\s\S]{1,80}beta|chấp nhận|bắt đầu thử nghiệm/i.test(html) && !/beta-status/i.test(html)) {
+        return { code, status: 'OPEN', appName, iconUrl, message: 'Còn slot trống (OPEN)', checkedAt: nowIso };
+    }
+
+    if (statusMsg && !/this beta is full|beta is full|not accepting|đã đầy|không nhận thêm|已满/i.test(statusMsg)) {
+        return { code, status: 'OPEN', appName, iconUrl, message: statusMsg, checkedAt: nowIso };
+    }
+
+    return { code, status: 'UNKNOWN', appName, iconUrl, message: statusMsg || 'Cần kiểm tra xác thực API', checkedAt: nowIso };
+}
+
+function checkPublicBetaSlot(code) {
+    return new Promise((resolve) => {
+        const joinUrl = `https://testflight.apple.com/join/${code}`;
+        $httpClient.get(
+            {
+                url: joinUrl,
+                headers: {
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'User-Agent': PUBLIC_WEB_UA
+                },
+                timeout: 8
+            },
+            (err, resp, body) => {
+                if (err) {
+                    resolve({ code, status: 'UNKNOWN', appName: code, iconUrl: '', message: String(err), checkedAt: new Date().toISOString() });
+                    return;
+                }
+                const httpStatus = resp ? (resp.status || resp.statusCode || 0) : 0;
+                const info = parsePublicJoinHtml(code, httpStatus, body || '');
+                const radarCache = loadJsonStore('TF_PUBLIC_RADAR_CACHE', {});
+                radarCache[code] = info;
+                writeStore(JSON.stringify(radarCache), 'TF_PUBLIC_RADAR_CACHE');
+                resolve(info);
+            }
+        );
+    });
 }
 
 function syncBoxJsSession(accountObj) {
@@ -162,26 +336,31 @@ function upsertAccountToken({ key, session_id, session_digest, request_id, tf_ua
     writeStore(session_digest, 'session_digest');
     writeStore(request_id, 'request_id');
     writeStore(key, 'key');
-    writeStore(tf_ua, 'tf_ua');
+    writeStore(tf_ua || DEFAULT_UA, 'tf_ua');
 
     const pool = loadAccountsPool();
     let idx = pool.findIndex(acc => acc && acc.key === key);
     const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    let isChanged = false;
 
     if (idx === -1) {
+        isChanged = true;
         const newAcc = {
             key,
             name: `Nick Apple ID #${pool.length + 1} (${key.slice(0, 6)})`,
             session_id,
             session_digest,
             request_id,
-            tf_ua,
+            tf_ua: tf_ua || DEFAULT_UA,
             joinedApps: [],
             updatedAt: nowStr
         };
         pool.push(newAcc);
         idx = pool.length - 1;
     } else {
+        if (pool[idx].session_id !== session_id || pool[idx].session_digest !== session_digest) {
+            isChanged = true;
+        }
         pool[idx].session_id = session_id;
         pool[idx].session_digest = session_digest;
         pool[idx].request_id = request_id;
@@ -193,24 +372,17 @@ function upsertAccountToken({ key, session_id, session_digest, request_id, tf_ua
     saveAccountsPool(pool);
     writeStore(String(idx), 'TF_ACTIVE_ACCOUNT_IDX');
     syncBoxJsSession(pool[idx]);
-    return { account: pool[idx], index: idx, total: pool.length };
+    return { account: pool[idx], index: idx, total: pool.length, isChanged };
 }
 
 function switchNextAppleIdAccount(notifyUser = true) {
-    const pool = loadAccountsPool();
-    if (pool.length === 0) {
-        const fallbackKey = readStore('key');
-        if (fallbackKey) {
-            upsertAccountToken({
-                key: fallbackKey,
-                session_id: readStore('session_id'),
-                session_digest: readStore('session_digest'),
-                request_id: readStore('request_id'),
-                tf_ua: readStore('tf_ua', DEFAULT_UA)
-            });
-        }
+    const lastSwitchTs = parseInt(readStore('TF_LAST_SWITCH_TS', '0'), 10);
+    if (!isNaN(lastSwitchTs) && Date.now() - lastSwitchTs < 2000) {
         return null;
     }
+    const pool = loadAccountsPool();
+    if (pool.length <= 1) return null;
+    writeStore(String(Date.now()), 'TF_LAST_SWITCH_TS');
 
     let curIdx = parseInt(readStore('TF_ACTIVE_ACCOUNT_IDX', '0'), 10);
     if (isNaN(curIdx) || curIdx < 0 || curIdx >= pool.length) curIdx = 0;
@@ -231,105 +403,137 @@ function switchNextAppleIdAccount(notifyUser = true) {
         sendNotify(
             '🔄 Đã tự động đổi Nick Apple ID',
             `${nextAcc.name} [${nextIdx + 1}/${pool.length}]`,
-            `Đang kích hoạt săn gói TestFlight (${readStore('APP_ID', DEFAULT_CHROME_BETA_ID)})`
+            `Đang kích hoạt săn gói TestFlight (${readStore('APP_ID', DEFAULT_BETA_CSV)})`
         );
     }
     return { account: nextAcc, index: nextIdx, total: pool.length };
 }
 
-function ensureDefaultAppIdForAccount(accountObj) {
-    let existing = readStore('APP_ID', '');
-    let argIds = parseArgumentAppIds();
-    let list = existing
-        ? existing.split(',').map(i => i.trim()).filter(Boolean)
-        : [];
+function isJoinedByAllAccounts(id, accountObj, pool) {
+    const activePool = Array.isArray(pool) && pool.length > 0 ? pool : loadAccountsPool();
+    if (activePool.length > 0) {
+        return activePool.every(acc => acc && Array.isArray(acc.joinedApps) && acc.joinedApps.includes(id));
+    }
+    if (accountObj && Array.isArray(accountObj.joinedApps) && accountObj.joinedApps.includes(id)) {
+        return true;
+    }
+    if (id === DEFAULT_CHROME_BETA_ID && readStore('TF_DEFAULT_CHROME_JOINED', 'false') === 'true') {
+        return true;
+    }
+    return false;
+}
 
-    if (argIds) {
-        argIds.split(',').map(i => i.trim()).filter(Boolean).forEach(id => {
-            if (!list.includes(id)) list.push(id);
-        });
+function ensureDefaultAppIdForAccount(accountObj, pool) {
+    const rawExisting = readStore('APP_ID', '');
+    const cleanExisting = sanitizeAppIdList(rawExisting);
+    const argIds = parseArgumentAppIds();
+    const removedIds = getRemovedAppIds();
+
+    let list = cleanExisting ? cleanExisting.split(',').filter(Boolean) : [];
+    const autoSeedCandidates = [
+        ...DEFAULT_BETA_IDS,
+        ...(argIds ? argIds.split(',').filter(Boolean) : [])
+    ];
+
+    for (const id of autoSeedCandidates) {
+        if (list.includes(id)) continue;
+        if (removedIds.has(id)) continue;
+        if (isJoinedByAllAccounts(id, accountObj, pool)) continue;
+        list.push(id);
     }
 
-    const joinedDone = readStore('TF_DEFAULT_CHROME_JOINED', 'false') === 'true';
-    const accJoinedChrome = accountObj && Array.isArray(accountObj.joinedApps) && accountObj.joinedApps.includes(DEFAULT_CHROME_BETA_ID);
-
-    if (list.length === 0 && !joinedDone && !accJoinedChrome) {
-        list.push(DEFAULT_CHROME_BETA_ID);
-    }
-
-    const finalStr = Array.from(new Set(list)).join(',');
-    if (finalStr !== existing) {
+    const finalList = Array.from(new Set(list));
+    const finalStr = finalList.join(',');
+    if (finalStr !== rawExisting) {
         writeStore(finalStr, 'APP_ID');
     }
-    return Array.from(new Set(list));
+    return finalList;
+}
+
+function removeInvalidAppId(ID, currentIds, reasonMsg) {
+    const idx = currentIds.indexOf(ID);
+    if (idx !== -1) currentIds.splice(idx, 1);
+    markAppIdRemoved(ID);
+    if (ID === DEFAULT_CHROME_BETA_ID) writeStore('true', 'TF_DEFAULT_CHROME_JOINED');
+    writeStore(currentIds.join(','), 'APP_ID');
+    sendNotify('⚠️ Liên kết TestFlight không tồn tại', `Mã APP_ID: ${ID}`, reasonMsg || 'Đã tự động xóa khỏi danh sách chờ');
 }
 
 if (typeof $request !== 'undefined' && $request && $request.url) {
-    let url = $request.url;
-    let keyPattern = /^https?:\/\/testflight\.apple\.com\/v3\/accounts\/(.*?)\/apps/;
-    let key = url.match(keyPattern) ? url.match(keyPattern)[1] : null;
+    const url = $request.url;
+    const accPattern = /^https?:\/\/testflight\.apple\.com\/v\d\/accounts\/([0-9a-fA-F-]{36})\/(apps|settings|ru\/[A-Za-z0-9]+)/;
+    const accMatch = url.match(accPattern);
+    const key = accMatch ? accMatch[1] : null;
+    let modifiedHeaders = null;
 
-    const addAppIdHandler = (appIdMatch) => {
-        if (appIdMatch && appIdMatch[1]) {
-            let appId = appIdMatch[1].trim();
-            let existingAppIds = readStore('APP_ID', '');
-            let appIdSet = new Set(existingAppIds ? existingAppIds.split(',').map(i => i.trim()).filter(Boolean) : []);
-            if (!appIdSet.has(DEFAULT_CHROME_BETA_ID) && readStore('TF_DEFAULT_CHROME_JOINED', 'false') !== 'true') {
-                appIdSet.add(DEFAULT_CHROME_BETA_ID);
-            }
-            if (!appIdSet.has(appId)) {
-                appIdSet.add(appId);
-                writeStore(Array.from(appIdSet).join(','), 'APP_ID');
-                sendNotify(
-                    '✈️ Đã thêm Link TestFlight',
-                    `Mã APP_ID: ${appId}`,
-                    `Danh sách đang săn: ${Array.from(appIdSet).join(',')}`
-                );
-            } else {
-                sendNotify(
-                    'ℹ️ APP_ID đã có trong danh sách săn',
-                    `Mã APP_ID: ${appId}`,
-                    `Danh sách hiện tại: ${Array.from(appIdSet).join(',')}`
-                );
-            }
+    const addAppIdHandler = (rawId) => {
+        const appId = extractSingleAppId(rawId);
+        if (!appId) return;
+        unmarkAppIdRemoved(appId);
+        const seededList = ensureDefaultAppIdForAccount(null);
+        const appIdSet = new Set(seededList);
+        if (!appIdSet.has(appId)) {
+            appIdSet.add(appId);
+            writeStore(Array.from(appIdSet).join(','), 'APP_ID');
+            sendNotify(
+                '✈️ Đã thêm Link TestFlight vào hàng đợi',
+                `Mã APP_ID: ${appId} (${getDefaultAppName(appId)})`,
+                `Danh sách đang săn: ${Array.from(appIdSet).join(',')}`,
+                `itms-beta://testflight.apple.com/join/${appId}`
+            );
         }
     };
 
-    if (/^https?:\/\/testflight\.apple\.com\/v1\/devices$/.test(url)) {
-        const switched = switchNextAppleIdAccount(true);
-        if (!switched) {
-            console.log(`[${PLATFORM}-TF] Chạm nút thiết bị/tài khoản (Hiện có 1 nick Apple ID).`);
-        }
-    } else if (/^https?:\/\/testflight\.apple\.com\/v3\/accounts\/.*\/apps/.test(url) && key) {
-        let headers = Object.fromEntries(
-            Object.entries($request.headers || {}).map(([k, v]) => [k.toLowerCase(), v])
+    if (/^https?:\/\/testflight\.apple\.com\/v1\/devices(\?.*)?$/.test(url)) {
+        switchNextAppleIdAccount(true);
+    } else if (key) {
+        const rawHeaders = $request.headers || {};
+        const lowerHeaders = Object.fromEntries(
+            Object.entries(rawHeaders).map(([k, v]) => [k.toLowerCase(), v])
         );
-        let session_id = headers['x-session-id'];
-        let session_digest = headers['x-session-digest'];
-        let request_id = headers['x-request-id'];
-        let tf_ua = headers['user-agent'] || DEFAULT_UA;
+        const session_id = lowerHeaders['x-session-id'];
+        const session_digest = lowerHeaders['x-session-digest'];
+        const request_id = lowerHeaders['x-request-id'];
+        const tf_ua = lowerHeaders['user-agent'] || DEFAULT_UA;
+
+        if (!readStore('session_id') || readStore('session_id') !== session_id) {
+            if (rawHeaders['If-None-Match'] || rawHeaders['if-none-match']) {
+                modifiedHeaders = Object.assign({}, rawHeaders);
+                delete modifiedHeaders['If-None-Match'];
+                delete modifiedHeaders['if-none-match'];
+            }
+        }
 
         const saved = upsertAccountToken({ key, session_id, session_digest, request_id, tf_ua });
         const activeIds = ensureDefaultAppIdForAccount(saved ? saved.account : null);
 
-        if (saved) {
+        if (saved && saved.isChanged) {
             sendNotify(
                 `🎉 Đã lưu Token ${saved.account.name}`,
-                `Tổng số nick Apple ID đã lưu: ${saved.total}`,
-                `Đang tự động săn TestFlight: ${activeIds.join(',')} (Google Chrome beta)`
+                `Kho Apple ID đã lưu: ${saved.total} nick`,
+                `Đang tự động canh slot: ${activeIds.join(',') || DEFAULT_BETA_CSV}`
             );
         }
+
+        if (/\/ru\/([A-Za-z0-9]+)/.test(url)) {
+            const ruMatch = url.match(/\/ru\/([A-Za-z0-9]+)/);
+            if (ruMatch && ruMatch[1]) addAppIdHandler(ruMatch[1]);
+        }
     } else if (/^https?:\/\/testflight\.apple\.com\/join\/([A-Za-z0-9]+)/.test(url)) {
-        const appIdMatch = url.match(/^https?:\/\/testflight\.apple\.com\/join\/([A-Za-z0-9]+)/);
-        addAppIdHandler(appIdMatch);
-    } else if (/v3\/accounts\/.*\/ru\/([A-Za-z0-9]+)/.test(url)) {
-        const appIdMatch = url.match(/v3\/accounts\/.*\/ru\/([A-Za-z0-9]+)/);
-        addAppIdHandler(appIdMatch);
+        const joinMatch = url.match(/^https?:\/\/testflight\.apple\.com\/join\/([A-Za-z0-9]+)/);
+        if (joinMatch && joinMatch[1]) addAppIdHandler(joinMatch[1]);
     }
 
-    $done({});
+    $done(modifiedHeaders ? { headers: modifiedHeaders } : {});
 } else {
     !(async () => {
+        const lastCronTs = parseInt(readStore('TF_LAST_CRON_TS', '0'), 10);
+        if (!isNaN(lastCronTs) && Date.now() - lastCronTs < 4000) {
+            $done();
+            return;
+        }
+        writeStore(String(Date.now()), 'TF_LAST_CRON_TS');
+
         let pool = loadAccountsPool();
         const currentKey = readStore('key');
         if (pool.length === 0 && currentKey) {
@@ -343,15 +547,43 @@ if (typeof $request !== 'undefined' && $request && $request.url) {
             if (initialized) pool = loadAccountsPool();
         }
 
-        let ids = ensureDefaultAppIdForAccount(pool[0] || null);
+        const ids = ensureDefaultAppIdForAccount(pool[0] || null, pool);
         if (!ids || ids.length === 0) {
-            console.log(`[${PLATFORM}-TF] Danh sách APP_ID trống. Đã hoàn tất săn tất cả TestFlight.`);
             $done();
             return;
         }
 
-        if (pool.length === 0) {
-            console.log(`[${PLATFORM}-TF] Đang chờ lấy Token Apple ID (Mục tiêu sẵn sàng: ${ids.join(',')}). Hãy mở app TestFlight 1 lần khi bật VPN.`);
+        const currentIds = [...ids];
+        const candidateIdsForAccept = [];
+        const openAlertCache = loadJsonStore('TF_OPEN_ALERT_CACHE', {});
+
+        for (const ID of [...currentIds]) {
+            const pubInfo = await checkPublicBetaSlot(ID);
+            if (pubInfo.status === 'INVALID') {
+                removeInvalidAppId(ID, currentIds, pubInfo.message);
+                continue;
+            }
+            if (pubInfo.status === 'FULL') {
+                console.log(`[${PLATFORM}-TF] [Radar Tầng 1] ${pubInfo.appName} (${ID}) Đang đầy (FULL) -> Chờ lượt kế...`);
+                continue;
+            }
+            if (pubInfo.status === 'OPEN' && pool.length === 0) {
+                const lastAlert = parseInt(openAlertCache[ID] || '0', 10);
+                if (isNaN(lastAlert) || Date.now() - lastAlert > 300000) {
+                    openAlertCache[ID] = Date.now();
+                    writeStore(JSON.stringify(openAlertCache), 'TF_OPEN_ALERT_CACHE');
+                    sendNotify(
+                        `🟢 CÒN SLOT TESTFLIGHT: ${pubInfo.appName}!`,
+                        `Mã: ${ID} — Nhấn thông báo này để vào ngay!`,
+                        `Bấm vào đây để mở thẳng trong ứng dụng TestFlight.`,
+                        `itms-beta://testflight.apple.com/join/${ID}`
+                    );
+                }
+            }
+            candidateIdsForAccept.push({ id: ID, appName: pubInfo.appName });
+        }
+
+        if (pool.length === 0 || candidateIdsForAccept.length === 0) {
             $done();
             return;
         }
@@ -364,7 +596,6 @@ if (typeof $request !== 'undefined' && $request && $request.url) {
             ? pool.map((_, i) => pool[(activeIdx + i) % pool.length])
             : [pool[activeIdx]];
 
-        let currentIds = [...ids];
         for (const account of accountsToRun) {
             if (!account || !account.key) continue;
             writeStore(account.session_id, 'session_id');
@@ -373,11 +604,11 @@ if (typeof $request !== 'undefined' && $request && $request.url) {
             writeStore(account.key, 'key');
             writeStore(account.tf_ua || DEFAULT_UA, 'tf_ua');
 
-            for (const ID of [...currentIds]) {
-                if (Array.isArray(account.joinedApps) && account.joinedApps.includes(ID)) {
-                    continue;
-                }
-                await autoPostForAccount(ID, currentIds, account, pool);
+            for (const item of candidateIdsForAccept) {
+                const ID = item.id;
+                if (!currentIds.includes(ID)) continue;
+                if (Array.isArray(account.joinedApps) && account.joinedApps.includes(ID)) continue;
+                await autoPostForAccount(ID, currentIds, account, pool, item.appName);
             }
         }
 
@@ -400,21 +631,20 @@ if (typeof $request !== 'undefined' && $request && $request.url) {
             sendNotify(
                 '🎉 Hoàn tất tham gia tất cả TestFlight!',
                 `Cả ${pool.length} nick Apple ID đã nhận đủ slot TestFlight.`,
-                `Bao gồm Google Chrome beta (${DEFAULT_CHROME_BETA_ID})`
+                `Đã hoàn thành danh sách săn beta.`
             );
-            if (typeof $httpAPI === 'function') {
-                $done($httpAPI('POST', '/v1/modules', { 'Giám sát beta công khai': false, 'Giám sát công khai': false }));
-                return;
-            }
         }
         $done();
-    })();
+    })().catch((err) => {
+        console.log(`[${PLATFORM}-TF] Lỗi ngoại lệ được bảo vệ: ${err}`);
+        $done();
+    });
 }
 
-function autoPostForAccount(ID, currentIds, account, pool) {
-    let Key = account.key;
-    let testurl = `https://testflight.apple.com/v3/accounts/${Key}/ru/`;
-    let header = {
+function autoPostForAccount(ID, currentIds, account, pool, fallbackAppName) {
+    const Key = account.key;
+    const testurl = `https://testflight.apple.com/v3/accounts/${Key}/ru/`;
+    const header = {
         'X-Session-Id': account.session_id,
         'X-Session-Digest': account.session_digest,
         'X-Request-Id': account.request_id,
@@ -422,33 +652,18 @@ function autoPostForAccount(ID, currentIds, account, pool) {
     };
 
     return new Promise((resolve) => {
-        $httpClient.get({ url: testurl + ID, headers: header }, (error, response, data) => {
+        $httpClient.get({ url: testurl + ID, headers: header, timeout: 10 }, (error, response, data) => {
             if (error) {
-                console.log(`[${PLATFORM}-TF] [${account.name}] ${ID} Lỗi mạng: ${error} (Giữ lại APP_ID)`);
                 resolve();
                 return;
             }
-
-            const status = response ? (response.status || response.statusCode) : 0;
-            if (status === 500 || status === 502 || status === 503 || status === 429) {
-                console.log(`[${PLATFORM}-TF] [${account.name}] ${ID} Máy chủ Apple bận (HTTP ${status}) -> Chờ lượt sau`);
+            const status = response ? (response.status || response.statusCode || 0) : 0;
+            if (status === 404) {
+                removeInvalidAppId(ID, currentIds, `Máy chủ Apple trả về HTTP 404.`);
                 resolve();
                 return;
             }
-
-            if (status === 401 || status === 403) {
-                console.log(`[${PLATFORM}-TF] [${account.name}] Phiên đăng nhập hết hạn (HTTP ${status}) -> Tự động chuyển sang nick Apple ID tiếp theo`);
-                resolve();
-                return;
-            }
-
-            if (status === 404 || status !== 200) {
-                console.log(`[${PLATFORM}-TF] [${account.name}] ${ID} Liên kết không hợp lệ (HTTP ${status}) -> Loại bỏ APP_ID`);
-                const idx = currentIds.indexOf(ID);
-                if (idx !== -1) currentIds.splice(idx, 1);
-                if (ID === DEFAULT_CHROME_BETA_ID) writeStore('true', 'TF_DEFAULT_CHROME_JOINED');
-                writeStore(currentIds.join(','), 'APP_ID');
-                sendNotify('⚠️ Liên kết TestFlight không tồn tại', `Mã APP_ID: ${ID} (HTTP ${status})`, 'Đã tự động xóa khỏi danh sách chờ');
+            if (status !== 200) {
                 resolve();
                 return;
             }
@@ -456,58 +671,38 @@ function autoPostForAccount(ID, currentIds, account, pool) {
             let jsonData;
             try {
                 jsonData = JSON.parse(data);
-            } catch (parseError) {
-                console.log(`[${PLATFORM}-TF] [${account.name}] ${ID} Lỗi giải mã JSON: ${parseError}`);
+            } catch (e) {
                 resolve();
                 return;
             }
 
-            if (!jsonData || !jsonData.data) {
-                const msg = (jsonData && Array.isArray(jsonData.messages) && jsonData.messages[0])
-                    ? jsonData.messages[0].message
-                    : 'Chưa thể chấp nhận lời mời';
-                console.log(`[${PLATFORM}-TF] [${account.name}] ${ID}: ${msg}`);
+            if (!jsonData || !jsonData.data || jsonData.data.status === 'FULL') {
                 resolve();
                 return;
             }
 
-            if (jsonData.data.status === 'FULL') {
-                const appName = (jsonData.data.app && jsonData.data.app.name) ? jsonData.data.app.name : (ID === DEFAULT_CHROME_BETA_ID ? 'Google Chrome beta' : ID);
-                console.log(`[${PLATFORM}-TF] [${account.name}] ${appName} (${ID}) Đang đầy (FULL) -> Tiếp tục canh slot...`);
-                resolve();
-                return;
-            }
-
-            $httpClient.post({ url: testurl + ID + '/accept', headers: header }, (postErr, postResp, body) => {
-                const postStatus = postResp ? (postResp.status || postResp.statusCode) : 0;
-                if (!postErr && postStatus === 200) {
-                    let jsonBody;
+            $httpClient.post({ url: testurl + ID + '/accept', headers: header, timeout: 10 }, (postErr, postResp, body) => {
+                const postStatus = postResp ? (postResp.status || postResp.statusCode || 0) : 0;
+                if (!postErr && postStatus >= 200 && postStatus < 300) {
+                    let jsonBody = null;
                     try {
-                        jsonBody = JSON.parse(body);
-                    } catch (parseError) {
-                        console.log(`[${PLATFORM}-TF] [${account.name}] ${ID} Phản hồi Accept lỗi JSON: ${parseError}`);
-                        resolve();
-                        return;
-                    }
+                        jsonBody = body ? JSON.parse(body) : null;
+                    } catch (e) {}
 
                     const appName = (jsonBody && jsonBody.data && jsonBody.data.name)
                         ? jsonBody.data.name
-                        : (ID === DEFAULT_CHROME_BETA_ID ? 'Google Chrome beta' : ID);
+                        : (fallbackAppName || getDefaultAppName(ID));
 
                     if (!Array.isArray(account.joinedApps)) account.joinedApps = [];
                     if (!account.joinedApps.includes(ID)) account.joinedApps.push(ID);
                     saveAccountsPool(pool);
 
-                    console.log(`[${PLATFORM}-TF] 🎉 [${account.name}] Đã tham gia thành công: ${appName} (${ID})`);
                     sendNotify(
-                        `🎉 Tham gia thành công: ${appName}`,
+                        `🎉 Đã vào TestFlight: ${appName}!`,
                         `Tài khoản: ${account.name} | Mã: ${ID}`,
-                        pool.length > 1
-                            ? `Tự động chuyển sang nick Apple ID tiếp theo để đăng ký gói!`
-                            : `Đã nhận thành công gói beta TestFlight!`
+                        `Nhấn vào thông báo để mở ứng dụng TestFlight!`,
+                        `itms-beta://testflight.apple.com/join/${ID}`
                     );
-                } else {
-                    console.log(`[${PLATFORM}-TF] [${account.name}] ${ID} Chưa thể Accept: ${postErr || `HTTP ${postStatus}`}`);
                 }
                 resolve();
             });

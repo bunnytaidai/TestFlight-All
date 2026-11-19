@@ -1,67 +1,54 @@
-# 🚀 Hướng Dẫn Sử Dụng Trên Shadowrocket & Loon (Tự Động Vào Google Chrome Beta `LPQmtkUs` & Tự Động Đổi Nick Apple ID Đăng Ký Gói — `version.4.6.0.0`)
+# 🚀 Hướng Dẫn Sử Dụng Thực Chiến Trên Shadowrocket & Loon (`version.5.1.0.0`)
 
-Thư mục `Tool/Shadowrocket` và `Tool/Loon` chứa trọn bộ **Cấu hình All-In-One (`.conf`)**, **Module (`.sgmodule`)**, **Plugin (`.plugin`)** và **Script (`.js`)** đã được nâng cấp toàn diện cho **Shadowrocket** và **Loon**:
-1. **Tích hợp sẵn mục tiêu mặc định:** **[Tham gia Google Chrome beta - TestFlight - Apple](https://testflight.apple.com/join/LPQmtkUs)** (Mã `APP_ID = LPQmtkUs`). Không cần nhập tay, chỉ cần mở app TestFlight là tự động canh và vào ngay!
-2. **Tự động lưu & xoay vòng đổi nick Apple ID (`Multi-Account Apple ID Pool`):**
-   - Mỗi khi bạn đăng nhập một tài khoản Apple ID mới vào TestFlight, hệ thống tự động gom và lưu Token vào kho đa tài khoản (`TF_ACCOUNTS` + `chavy_boxjs_sessions` + `iRingo.TestFlight.Caches`).
-   - Khi chạy ngầm (`Cron`), script tự động xoay vòng qua **tất cả các nick Apple ID** đã lưu để đăng ký gói beta **Google Chrome beta (`LPQmtkUs`)** cho từng nick.
-   - Bấm vào **biểu tượng Tài khoản (góc trên bên phải)** trong ứng dụng TestFlight (`/v1/devices`) để **tự động đổi sang nick Apple ID tiếp theo** ngay lập tức mà không cần đăng nhập lại!
-3. **Tự động đổi nick Apple ID đăng ký gói VIP (`Auto Subscription / RevenueCat Unlock`):** Tự động xóa `X-RevenueCat-ETag` & `If-None-Match` khi đổi nick Apple ID để chống lỗi `304 Not Modified`, giúp kích hoạt gói VIP/Pro hạn tới năm `2099` cho mọi nick Apple ID.
+Thư mục `Tool/Shadowrocket` và `Tool/Loon` chứa trọn bộ **Cấu hình All-In-One (`.conf`)**, **Module (`.sgmodule`)**, **Plugin (`.plugin`)** và **Script (`.js`)** đã được kiểm định & sửa lỗi toàn diện để **hoạt động thật sự ngoài thực tế**:
+
+1. **Săn Slot Thông Minh 2 Tầng Cho Trọn Bộ 5 Ứng Dụng Mặc Định (`rqvYCYOp`, `YSo8aVCS`, `m2kxP5cw`, `LPQmtkUs`, `Xh9VNQoA`):**
+   - **Microsoft Edge beta:** `https://testflight.apple.com/join/rqvYCYOp` (`rqvYCYOp`)
+   - **Notion: Ghi chép, Nhiệm vụ, AI beta:** `https://testflight.apple.com/join/YSo8aVCS` (`YSo8aVCS`)
+   - **Notion Agents beta:** `https://testflight.apple.com/join/m2kxP5cw` (`m2kxP5cw`)
+   - **Google Chrome beta:** `https://testflight.apple.com/join/LPQmtkUs` (`LPQmtkUs`)
+   - **Aloha Browser – Private VPN beta:** `https://testflight.apple.com/join/Xh9VNQoA` (`Xh9VNQoA`)
+   - Kiểm tra trang công khai `https://testflight.apple.com/join/<CODE>` trước tiên (**không tốn Token Apple ID**, không sợ khóa `HTTP 429`), sau đó tự động gọi API `/accept` cho toàn bộ các nick Apple ID trong kho ngay khi có slot mở!
+   - Đã vá dứt điểm lỗi tự xóa `APP_ID` khi mạng chập chờn và lỗi treo/văng VPN do Cron 1 giây vượt trần `15MB RAM` trên iOS.
+2. **4 Plugin TestFlight Mới Kèm Giao Diện Web Nội Bộ Mở Trực Tiếp Trên Safari (Không Cần Mạng Ngoài):**
+   - 📡 **`http://tf-radar.test/`** (`TF_Slot_Radar`): Quét trạng thái Slot công khai (`OPEN` / `FULL`), thêm/xóa mã và bấm mở thẳng `itms-beta://`.
+   - ⏳ **`http://tf-status.test/`** (`TF_Expiry_Monitor`): Đếm ngược **hạn 90 ngày** của mọi ứng dụng TestFlight đang cài và báo khi có bản Build mới (Chế độ Chỉ Đọc an toàn).
+   - 🔗 **`http://tf-link.test/`** (`TF_Link_Helper`): Dán cả đoạn tin nhắn Telegram/Discord để tự lọc hàng loạt mã `APP_ID`, đổi nick Apple ID 1 chạm Offline.
+   - 🩺 **`http://tf-diag.test/`** (`TF_Network_Diagnostics`): Đo độ trễ `ms` tới máy chủ TestFlight/CDN và tự bắt bệnh thiếu chứng chỉ CA/HTTP2 (ẩn toàn bộ Header nhạy cảm).
 
 ---
 
-## 📂 Danh Sách Tệp Cấu Hình Cho Shadowrocket & Loon
+## 📂 Danh Sách Trọn Bộ Tệp Cấu Hình & Plugin (`v5.1.0.0`)
 
-| Nền Tảng | Tên Tệp | Chức Năng Chính |
+| Nền Tảng | Tên Tệp | Chức Năng Thực Tế |
 | :--- | :--- | :--- |
-| **Shadowrocket** | [`Shadowrocket_All_In_One.conf`](file:///c:/Users/Antidv/Desktop/testflight-all/Tool/Shadowrocket/Shadowrocket_All_In_One.conf) | **File Cấu Hình Trọn Gói (All-In-One):** Gộp sẵn `DIRECT` rule, tự vào `LPQmtkUs`, tự đổi nick Apple ID, BoxJS và mở khóa gói VIP. |
-| **Shadowrocket** | [`Auto_Join_TF.sgmodule`](file:///c:/Users/Antidv/Desktop/testflight-all/Tool/Shadowrocket/Auto_Join_TF.sgmodule) | **Module Tự Động Vào Google Chrome Beta (`LPQmtkUs`) & Xoay Vòng Apple ID:** Chạy ngầm mỗi giây để săn slot cho toàn bộ các nick Apple ID. |
-| **Shadowrocket** | [`TestFlight_Unlock_Multi.sgmodule`](file:///c:/Users/Antidv/Desktop/testflight-all/Tool/Shadowrocket/TestFlight_Unlock_Multi.sgmodule) | **Module Đa Tài Khoản & Mở Khóa Thiết Bị:** Tự động đổi nick khi bấm icon Tài khoản (`/v1/devices`), vượt giới hạn iOS/iPadOS/macOS và tải nhanh CDN. |
-| **Shadowrocket** | [`Auto_Subscription_Unlock.sgmodule`](file:///c:/Users/Antidv/Desktop/testflight-all/Tool/Shadowrocket/Auto_Subscription_Unlock.sgmodule) | **Module Mở Khóa Gói Đăng Ký VIP Khi Đổi Nick Apple ID:** Hỗ trợ RevenueCat, GoodNotes 6, Notability, Picsart, CamScanner, Fantastical, Slidebox, Meitu. |
-| **Loon** | [`Loon_All_In_One.conf`](file:///c:/Users/Antidv/Desktop/testflight-all/Tool/Loon/Config/Loon_All_In_One.conf) | **File Cấu Hình Loon Trọn Gói (All-In-One):** Đầy đủ tự động vào `LPQmtkUs`, tự đổi nick Apple ID, BoxJs và mở khóa gói VIP. |
-| **Loon** | [`Auto_Join_TF.plugin`](file:///c:/Users/Antidv/Desktop/testflight-all/Tool/Loon/Plugin/Auto_Join_TF.plugin) | **Plugin Tự Động Vào Google Chrome Beta (`LPQmtkUs`) & Đổi Nick Apple ID** chuẩn hóa cho Loon (`DIRECT`). |
-| **Loon** | [`TestFlight.plugin`](file:///c:/Users/Antidv/Desktop/testflight-all/Tool/Loon/Plugin/TestFlight.plugin) | **Plugin Đa Tài Khoản Apple ID + Tự Vào `LPQmtkUs` + Tải Nhanh CDN** cho Loon. |
-| **Loon** | [`Auto_Subscription_Unlock.plugin`](file:///c:/Users/Antidv/Desktop/testflight-all/Tool/Loon/Plugin/Auto_Subscription_Unlock.plugin) | **Plugin Mở Khóa Gói Đăng Ký VIP Khi Đổi Nick Apple ID** cho Loon. |
+| **Shadowrocket** | [`Shadowrocket_All_In_One.conf`](./Shadowrocket_All_In_One.conf) | **Cấu hình Trọn Gói:** Đã tích hợp sẵn Săn 2 Tầng 5 App Beta mặc định (`rqvYCYOp`, `YSo8aVCS`, `m2kxP5cw`, `LPQmtkUs`, `Xh9VNQoA`), Đa tài khoản, BoxJS và cả 4 Web Dashboard mới. |
+| **Shadowrocket** | [`Auto_Join_TF.sgmodule`](./Auto_Join_TF.sgmodule) | **Module Tự Vào TestFlight 2 Tầng & Đổi Nick:** Chu kỳ an toàn 10 giây, chống xóa nhầm `APP_ID`. |
+| **Shadowrocket** | [`TestFlight_Unlock_Multi.sgmodule`](./TestFlight_Unlock_Multi.sgmodule) | **Module Đa Tài Khoản, Mở Khóa Khu Vực/Thiết Bị & Tải Nhanh CDN.** |
+| **Shadowrocket** | [`TF_Slot_Radar.sgmodule`](./TF_Slot_Radar.sgmodule) | **[MỚI] Radar Canh Slot Công Khai Không Cần Token (`http://tf-radar.test/`).** |
+| **Shadowrocket** | [`TF_Expiry_Monitor.sgmodule`](./TF_Expiry_Monitor.sgmodule) | **[MỚI] Giám Sát Hạn 90 Ngày & Báo Build Mới (`http://tf-status.test/`).** |
+| **Shadowrocket** | [`TF_Link_Helper.sgmodule`](./TF_Link_Helper.sgmodule) | **[MỚI] Tự Bắt Link, Mở Thẳng App & Quản Lý Hàng Đợi Offline (`http://tf-link.test/`).** |
+| **Shadowrocket** | [`TF_Network_Diagnostics.sgmodule`](./TF_Network_Diagnostics.sgmodule) | **[MỚI] Tối Ưu Tải Nhanh CDN & Bắt Bệnh Mạng/MitM (`http://tf-diag.test/`).** |
+| **Shadowrocket** | [`BoxJs.sgmodule`](./BoxJs.sgmodule) | **Module BoxJS (`http://boxjs.com`):** Đã gắn `[Host] 127.0.0.1` và sửa lỗi `DIRECT` cho `jsdelivr.net`. |
+| **Loon** | [`Loon_All_In_One.conf`](../Loon/Config/Loon_All_In_One.conf) | **Cấu hình Loon Trọn Gói:** Đầy đủ Săn 2 Tầng, Đa tài khoản, DoH IP chống lỗi DNS và 4 Web Dashboard mới. |
+| **Loon** | [`Auto_Join_TF.plugin`](../Loon/Plugin/Auto_Join_TF.plugin) | **Plugin Tự Vào TestFlight 2 Tầng & Đổi Nick Apple ID** cho Loon. |
+| **Loon** | [`TestFlight.plugin`](../Loon/Plugin/TestFlight.plugin) | **Plugin Đa Tài Khoản, Mở Khóa Thiết Bị & Tải Nhanh CDN** cho Loon. |
+| **Loon** | [`TF_Slot_Radar.plugin`](../Loon/Plugin/TF_Slot_Radar.plugin) | **[MỚI] Plugin Radar Canh Slot Công Khai Không Cần Token (`http://tf-radar.test/`).** |
+| **Loon** | [`TF_Expiry_Monitor.plugin`](../Loon/Plugin/TF_Expiry_Monitor.plugin) | **[MỚI] Plugin Giám Sát Hạn 90 Ngày & Build Mới (`http://tf-status.test/`).** |
+| **Loon** | [`TF_Link_Helper.plugin`](../Loon/Plugin/TF_Link_Helper.plugin) | **[MỚI] Plugin Tự Bắt Link & Quản Lý Hàng Đợi Offline (`http://tf-link.test/`).** |
+| **Loon** | [`TF_Network_Diagnostics.plugin`](../Loon/Plugin/TF_Network_Diagnostics.plugin) | **[MỚI] Plugin Chẩn Đoán Kết Nối & Kiểm Định MitM (`http://tf-diag.test/`).** |
 
 ---
 
-## 🛠️ PHẦN 1: BƯỚC CHUẨN BỊ BẮT BUỘC (BẬT GIẢI MÃ HTTPS / MITM & HTTP/2)
+## 🛠️ BƯỚC CHUẨN BỊ QUAN TRỌNG (CHỨNG CHỈ CA & MITM HTTP/2)
+
+> **Mẹo kiểm tra nhanh:** Sau khi bật VPN trên Loon hoặc Shadowrocket, hãy mở Safari truy cập **`http://tf-diag.test/`** — hệ thống sẽ tự động kiểm tra và báo xanh `🟢` nếu kết nối & Token đã sẵn sàng!
 
 1. **Trên Shadowrocket:**
-   - Mở **Shadowrocket** ➔ Tab **Cấu hình (`Config`)** ➔ Nhấn chữ **`i`** cạnh cấu hình đang dùng ➔ Chọn **Giải mã HTTPS (`HTTPS Decryption`)**.
-   - Bật **Giải mã HTTPS**, chọn **Tạo chứng chỉ CA mới (`Generate New CA Certificate`)** ➔ **Cài đặt chứng chỉ (`Install Certificate`)**.
-   - Vào **Cài đặt iOS ➔ Đã tải về hồ sơ ➔ Cài đặt**, sau đó vào **Cài đặt chung ➔ Giới thiệu ➔ Cài đặt tin cậy chứng chỉ (`Certificate Trust Settings`)** ➔ Bật xanh chứng chỉ Shadowrocket.
+   - Mở **Shadowrocket** ➔ Tab **Cấu hình (`Config`)** ➔ Nhấn chữ **`i`** cạnh cấu hình đang dùng ➔ **Giải mã HTTPS (`HTTPS Decryption`)**.
+   - Bật **Giải mã HTTPS** ➔ **Tạo chứng chỉ CA mới** ➔ **Cài đặt chứng chỉ** ➔ Vào **Cài đặt iOS ➔ Đã tải về hồ sơ** để cài đặt.
+   - Vào **Cài đặt chung ➔ Giới thiệu ➔ Cài đặt tin cậy chứng chỉ (`Certificate Trust Settings`)** ➔ Bật xanh chứng chỉ Shadowrocket.
 2. **Trên Loon:**
-   - Mở **Loon** ➔ Tab **Cấu hình (`Profile`)** ➔ Mục **MITM** ➔ Nhấn **Cài đặt chứng chỉ (`CA Certificate`)** và bật tin cậy chứng chỉ trong Cài đặt iOS.
+   - Mở **Loon** ➔ Tab **Profile (`Cấu hình`)** ➔ Mục **MITM** ➔ Cài đặt **CA Certificate** và bật tin cậy trong Cài đặt iOS.
    - Bật công tắc **MITM** và **MITM over HTTP/2**.
-
----
-
-## ✈️ PHẦN 2: CÁCH TỰ ĐỘNG VÀO GOOGLE CHROME BETA (`LPQmtkUs`) & TỰ ĐỔI NICK APPLE ID
-
-### Bước 1: Nạp Cấu hình hoặc Module/Plugin
-- **Cách nhanh nhất (Khuyên dùng):** Nhập trực tiếp file [`Shadowrocket_All_In_One.conf`](file:///c:/Users/Antidv/Desktop/testflight-all/Tool/Shadowrocket/Shadowrocket_All_In_One.conf) (cho Shadowrocket) hoặc [`Loon_All_In_One.conf`](file:///c:/Users/Antidv/Desktop/testflight-all/Tool/Loon/Config/Loon_All_In_One.conf) (cho Loon).
-- **Hoặc cài theo Module/Plugin lẻ:**
-  - Trên **Shadowrocket**: Thêm [`Auto_Join_TF.sgmodule`](file:///c:/Users/Antidv/Desktop/testflight-all/Tool/Shadowrocket/Auto_Join_TF.sgmodule) + [`TestFlight_Unlock_Multi.sgmodule`](file:///c:/Users/Antidv/Desktop/testflight-all/Tool/Shadowrocket/TestFlight_Unlock_Multi.sgmodule) + [`Auto_Subscription_Unlock.sgmodule`](file:///c:/Users/Antidv/Desktop/testflight-all/Tool/Shadowrocket/Auto_Subscription_Unlock.sgmodule).
-  - Trên **Loon**: Thêm [`TestFlight.plugin`](file:///c:/Users/Antidv/Desktop/testflight-all/Tool/Loon/Plugin/TestFlight.plugin) + [`Auto_Subscription_Unlock.plugin`](file:///c:/Users/Antidv/Desktop/testflight-all/Tool/Loon/Plugin/Auto_Subscription_Unlock.plugin).
-
-### Bước 2: Tự động gom nhiều nick Apple ID & Tự động vào Google Chrome beta (`LPQmtkUs`)
-1. Bật VPN trên **Loon** hoặc **Shadowrocket**.
-2. Mở ứng dụng **TestFlight** trên iPhone:
-   - Hệ thống tự động bắt Token của tài khoản Apple ID thứ nhất, lưu vào kho **`TF_ACCOUNTS` (`Nick Apple ID #1`)** và tự động nạp sẵn mã **`LPQmtkUs`** (**[Tham gia Google Chrome beta - TestFlight - Apple](https://testflight.apple.com/join/LPQmtkUs)**).
-3. Nếu bạn muốn thêm nhiều nick Apple ID vào kho tự động:
-   - Đăng nhập nick Apple ID thứ 2, thứ 3... vào Media & Mục mua / TestFlight ➔ Mở app TestFlight. Hệ thống tự động cộng dồn vào danh sách (`Nick Apple ID #2`, `Nick Apple ID #3`...).
-4. **Cách hoạt động của chế độ Tự Động Đổi Nick Apple ID:**
-   - **Tự động xoay vòng ngầm (`Cron` mỗi giây):** Script tự động đổi lần lượt qua từng nick Apple ID trong kho để gửi yêu cầu tham gia gói **Google Chrome beta (`LPQmtkUs`)** cho đến khi tất cả các nick đều nhận được slot!
-   - **Đổi nick 1 chạm trong app TestFlight:** Bất kỳ lúc nào bạn mở app TestFlight và chạm vào **biểu tượng Tài khoản (ở góc trên bên phải màn hình)**, đường dẫn `/v1/devices` sẽ kích hoạt bộ chuyển đổi đổi ngay sang nick Apple ID tiếp theo và thông báo tên nick đang dùng!
-
----
-
-## 💎 PHẦN 3: TỰ ĐỘNG ĐỔI NICK APPLE ID ĐĂNG KÝ GÓI VIP (`SUBSCRIPTION UNLOCK`)
-
-Khi bạn đổi sang bất kỳ nick Apple ID nào trên máy để tải ứng dụng và đăng ký gói VIP:
-1. Đảm bảo đã bật [`Auto_Subscription_Unlock.sgmodule`](file:///c:/Users/Antidv/Desktop/testflight-all/Tool/Shadowrocket/Auto_Subscription_Unlock.sgmodule) (Shadowrocket) hoặc [`Auto_Subscription_Unlock.plugin`](file:///c:/Users/Antidv/Desktop/testflight-all/Tool/Loon/Plugin/Auto_Subscription_Unlock.plugin) (Loon).
-2. Mở ứng dụng cần đăng ký gói (**GoodNotes 6, Notability, Picsart, CamScanner, Fantastical, Slidebox, Meitu** hoặc bất kỳ ứng dụng nào dùng **RevenueCat**).
-3. Nhấn **Khôi phục giao dịch mua (`Restore Purchases`)**:
-   - Pha `http-request` tự động xóa `X-RevenueCat-ETag` & `If-None-Match` của nick cũ để làm mới phiên.
-   - Pha `http-response` tự động cấp quyền `PURCHASED` / `active` (hết hạn `2099-12-31`) cho đúng tài khoản Apple ID mới vừa chuyển sang!
+   - Mở ứng dụng **TestFlight** 1 lần khi đang bật VPN để hệ thống tự động thu thập Token!

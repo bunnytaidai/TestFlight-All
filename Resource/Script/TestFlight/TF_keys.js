@@ -1,150 +1,190 @@
 /*
-Script Author: DecoAri
-Fix Author: Hely-T
-Upgraded: v4.6.0.0 (Loon & Shadowrocket Multi-Account Apple ID + Auto-seed Google Chrome beta LPQmtkUs)
-Reference: https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_keys.js
-Các bước sử dụng cụ thể:
-- Nhập Plugin / Module trên Loon hoặc Shadowrocket
-- Vào trang MitM để kích hoạt và bật MitM qua HTTP/2 (testflight.apple.com)
-- Mặc định đã tích hợp sẵn APP_ID: LPQmtkUs (Google Chrome beta - https://testflight.apple.com/join/LPQmtkUs)
-- Hỗ trợ tự động lưu nhiều tài khoản Apple ID (Multi-Account Pool) và tự động đổi nick khi nhấn biểu tượng Tài khoản trong ứng dụng TestFlight!
-*/
+ * Script: TF_keys.js
+ * Tác giả gốc: DecoAri & Hely-T
+ * Nâng cấp: version.5.1.0.0 (Loon & Shadowrocket Multi-Account Token Collector + 5 Default Beta Apps)
+ * - Tự động nạp sẵn 5 ứng dụng TestFlight mặc định: rqvYCYOp (Edge), YSo8aVCS (Notion), m2kxP5cw (Notion Agents), LPQmtkUs (Chrome), Xh9VNQoA (Aloha VPN).
+ * - Tự động bắt Token trên mọi đường dẫn /v2, /v3 (/apps, /settings, /ru/) kể cả khi có query string (?platform=ios).
+ * - Chặn ghi đè null làm mất Token cũ khi phản hồi 304 Not Modified; tự xóa If-None-Match khi cần làm mới Token.
+ * - Khóa chống trùng đổi nick 2000ms trên /v1/devices.
+ */
 
+const DEFAULT_BETA_IDS = ['rqvYCYOp', 'YSo8aVCS', 'm2kxP5cw', 'LPQmtkUs', 'Xh9VNQoA'];
+const DEFAULT_BETA_CSV = DEFAULT_BETA_IDS.join(',');
 const DEFAULT_CHROME_BETA_ID = 'LPQmtkUs';
-const reg1 = /^https:\/\/testflight\.apple\.com\/v3\/accounts\/(.*)\/apps$/;
-const reg2 = /^https:\/\/testflight\.apple\.com\/join\/(.*)/;
-const regDevices = /^https:\/\/testflight\.apple\.com\/v1\/devices(\/.*)?$/;
+const regAcc = /^https?:\/\/testflight\.apple\.com\/v\d\/accounts\/([0-9a-fA-F-]{36})\/(apps|settings|ru\/[A-Za-z0-9]+)(\?.*)?$/;
+const regJoin = /^https?:\/\/testflight\.apple\.com\/join\/([A-Za-z0-9]{5,12})/;
+const regDevices = /^https?:\/\/testflight\.apple\.com\/v1\/devices(\?.*)?$/;
 
 function getHeader(headers, name) {
-  if (!headers) return '';
-  const lower = name.toLowerCase();
-  for (const k of Object.keys(headers)) {
-    if (k.toLowerCase() === lower) return headers[k];
-  }
-  return '';
+    if (!headers) return '';
+    const lower = name.toLowerCase();
+    for (const k of Object.keys(headers)) {
+        if (k.toLowerCase() === lower) return headers[k];
+    }
+    return '';
+}
+
+function readStore(key, fallback = '') {
+    if (typeof $persistentStore !== 'undefined') {
+        const val = $persistentStore.read(key);
+        return (val !== undefined && val !== null && val !== 'null' && val !== 'undefined') ? val : fallback;
+    }
+    if (typeof $prefs !== 'undefined') {
+        const val = $prefs.valueForKey(key);
+        return (val !== undefined && val !== null && val !== 'null' && val !== 'undefined') ? val : fallback;
+    }
+    return fallback;
+}
+
+function writeStore(val, key) {
+    const strVal = typeof val === 'object' ? JSON.stringify(val) : String(val);
+    if (typeof $persistentStore !== 'undefined') return $persistentStore.write(strVal, key);
+    if (typeof $prefs !== 'undefined') return $prefs.setValueForKey(strVal, key);
+    return false;
+}
+
+function notifyUser(title, subtitle, body) {
+    if (typeof $notification !== 'undefined' && $notification.post) {
+        $notification.post(title, subtitle || '', body || '');
+    } else if (typeof $notify !== 'undefined') {
+        $notify(title, subtitle || '', body || '');
+    }
 }
 
 function readAccountsPool() {
-  try {
-    const raw = $persistentStore.read('TF_ACCOUNTS');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
-    }
-  } catch (e) {}
-  return [];
-}
-
-function writeAccountsPool(pool) {
-  try {
-    $persistentStore.write(JSON.stringify(pool), 'TF_ACCOUNTS');
-  } catch (e) {}
+    try {
+        const raw = readStore('TF_ACCOUNTS', '[]');
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+    } catch (e) {}
+    return [];
 }
 
 function ensureDefaultAppId() {
-  let appId = $persistentStore.read('APP_ID');
-  if (!appId || !appId.trim()) {
-    $persistentStore.write(DEFAULT_CHROME_BETA_ID, 'APP_ID');
-    return DEFAULT_CHROME_BETA_ID;
-  }
-  return appId;
+    const raw = readStore('APP_ID', '');
+    const removedRaw = readStore('TF_REMOVED_IDS', '');
+    const removedSet = new Set(removedRaw ? String(removedRaw).split(/[,;|+\s]+/).filter(Boolean) : []);
+    const pool = readAccountsPool();
+    const list = raw ? String(raw).split(/[,;|+\s]+/).map((s) => s.trim()).filter(Boolean) : [];
+
+    for (const id of DEFAULT_BETA_IDS) {
+        if (list.includes(id) || removedSet.has(id)) continue;
+        const allJoined = pool.length > 0
+            ? pool.every((acc) => acc && Array.isArray(acc.joinedApps) && acc.joinedApps.includes(id))
+            : (id === DEFAULT_CHROME_BETA_ID && readStore('TF_DEFAULT_CHROME_JOINED', 'false') === 'true');
+        if (!allJoined) list.push(id);
+    }
+
+    const finalStr = Array.from(new Set(list)).join(',');
+    if (finalStr !== raw) writeStore(finalStr, 'APP_ID');
+    return finalStr;
 }
 
 function syncAccountToPool(accountObj) {
-  if (!accountObj || !accountObj.key || !accountObj.session_id) return { total: 0, isNew: false };
-  const pool = readAccountsPool();
-  const idx = pool.findIndex((item) => item && item.key === accountObj.key);
-  let isNew = false;
-  if (idx >= 0) {
-    pool[idx] = Object.assign({}, pool[idx], accountObj, { updatedAt: new Date().toISOString() });
-  } else {
-    isNew = true;
-    pool.push(Object.assign({ label: `AppleID #${pool.length + 1}` }, accountObj, { updatedAt: new Date().toISOString() }));
-  }
-  writeAccountsPool(pool);
-  return { total: pool.length, isNew };
-}
-
-function unique(arr) {
-  return Array.from(new Set(arr));
-}
-
-if (typeof $request !== 'undefined' && $request) {
-  const url = $request.url || '';
-
-  if (reg1.test(url)) {
-    $persistentStore.write(null, 'request_id');
-    let key = url.replace(/(.*accounts\/)(.*)(\/apps)/, '$2');
-    let session_id = getHeader($request.headers, 'x-session-id');
-    let session_digest = getHeader($request.headers, 'x-session-digest');
-    let request_id = getHeader($request.headers, 'x-request-id');
-    let ua = getHeader($request.headers, 'user-agent') || 'TestFlight/3.5.0 (iPhone; iOS 17.4; Scale/3.00)';
-
-    $persistentStore.write(key, 'key');
-    $persistentStore.write(session_id, 'session_id');
-    $persistentStore.write(session_digest, 'session_digest');
-    $persistentStore.write(request_id, 'request_id');
-    $persistentStore.write(ua, 'tf_ua');
-
-    const currentAppIds = ensureDefaultAppId();
-    const syncInfo = syncAccountToPool({
-      key: key,
-      session_id: session_id,
-      session_digest: session_digest,
-      request_id: request_id,
-      tf_ua: ua
-    });
-
-    if ($persistentStore.read('request_id') !== null) {
-      $notification.post(
-        'Thu thập Apple ID TestFlight thành công 🎉',
-        `Tài khoản (${key.slice(0, 8)}...) | Tổng kho: ${syncInfo.total} nick`,
-        `Đang canh tự động APP_ID: ${currentAppIds}`
-      );
-    } else {
-      $notification.post(
-        'Thu thập thông tin TF thất bại ⚠️',
-        'Vui lòng bật MitM qua HTTP/2 và khởi động lại VPN + TestFlight!',
-        ''
-      );
+    if (!accountObj || !accountObj.key || !accountObj.session_id || !accountObj.session_digest || !accountObj.request_id) {
+        return { total: 0, isChanged: false };
     }
-    $done({});
-  } else if (reg2.test(url)) {
-    let appId = ensureDefaultAppId();
-    let arr = appId.split(',').map((s) => s.trim()).filter(Boolean);
-    const match = reg2.exec(url);
-    const id = match && match[1] ? match[1].replace(/[^A-Za-z0-9]/g, '') : '';
-    if (id) {
-      arr.push(id);
-      arr = unique(arr).filter((a) => a);
-      appId = arr.join(',');
-      $persistentStore.write(appId, 'APP_ID');
-      $notification.post('TestFlight Tự động tham gia', `Đã thêm APP_ID: ${id}`, `Danh sách hiện tại: ${appId}`);
-    }
-    $done({});
-  } else if (regDevices.test(url)) {
     const pool = readAccountsPool();
-    if (pool.length > 1) {
-      let idx = parseInt($persistentStore.read('TF_ACTIVE_ACCOUNT_INDEX') || '0', 10);
-      if (isNaN(idx)) idx = 0;
-      idx = (idx + 1) % pool.length;
-      const nextAcc = pool[idx];
-      $persistentStore.write(String(idx), 'TF_ACTIVE_ACCOUNT_INDEX');
-      $persistentStore.write(nextAcc.key, 'key');
-      $persistentStore.write(nextAcc.session_id, 'session_id');
-      $persistentStore.write(nextAcc.session_digest, 'session_digest');
-      $persistentStore.write(nextAcc.request_id, 'request_id');
-      if (nextAcc.tf_ua) $persistentStore.write(nextAcc.tf_ua, 'tf_ua');
-      $notification.post(
-        '🔄 Đã tự động đổi Apple ID',
-        `Đang dùng: ${nextAcc.label || 'AppleID #' + (idx + 1)} (${nextAcc.key.slice(0, 8)}...)`,
-        `Tổng số tài khoản đã lưu: ${pool.length}`
-      );
+    const idx = pool.findIndex((item) => item && item.key === accountObj.key);
+    let isChanged = false;
+    const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    if (idx >= 0) {
+        if (pool[idx].session_id !== accountObj.session_id || pool[idx].session_digest !== accountObj.session_digest) {
+            isChanged = true;
+        }
+        pool[idx] = Object.assign({}, pool[idx], accountObj, { updatedAt: nowStr });
+    } else {
+        isChanged = true;
+        pool.push(Object.assign({ name: `Nick Apple ID #${pool.length + 1} (${accountObj.key.slice(0, 6)})`, joinedApps: [] }, accountObj, { updatedAt: nowStr }));
     }
-    $done({});
-  } else {
-    $done({});
-  }
+    writeStore(JSON.stringify(pool), 'TF_ACCOUNTS');
+    return { total: pool.length, isChanged };
+}
+
+if (typeof $request !== 'undefined' && $request && $request.url) {
+    const url = $request.url;
+    let modifiedHeaders = null;
+
+    if (regAcc.test(url)) {
+        const accMatch = regAcc.exec(url);
+        const key = accMatch ? accMatch[1] : '';
+        const session_id = getHeader($request.headers, 'x-session-id');
+        const session_digest = getHeader($request.headers, 'x-session-digest');
+        const request_id = getHeader($request.headers, 'x-request-id');
+        const ua = getHeader($request.headers, 'user-agent') || 'TestFlight/3.5.0 (iPhone; iOS 17.7; Scale/3.00)';
+
+        if (!readStore('session_id') || readStore('session_id') !== session_id) {
+            if ($request.headers && ($request.headers['If-None-Match'] || $request.headers['if-none-match'])) {
+                modifiedHeaders = Object.assign({}, $request.headers);
+                delete modifiedHeaders['If-None-Match'];
+                delete modifiedHeaders['if-none-match'];
+            }
+        }
+
+        if (key && session_id && session_digest && request_id) {
+            writeStore(key, 'key');
+            writeStore(session_id, 'session_id');
+            writeStore(session_digest, 'session_digest');
+            writeStore(request_id, 'request_id');
+            writeStore(ua, 'tf_ua');
+
+            const syncInfo = syncAccountToPool({ key, session_id, session_digest, request_id, tf_ua: ua });
+            const currentAppIds = ensureDefaultAppId();
+            if (syncInfo.isChanged) {
+                notifyUser(
+                    '🎉 Đã thu thập Token TestFlight',
+                    `Tài khoản (${key.slice(0, 8)}...) | Kho: ${syncInfo.total} nick`,
+                    `Đang canh tự động APP_ID: ${currentAppIds || DEFAULT_BETA_CSV}`
+                );
+            }
+        }
+        $done(modifiedHeaders ? { headers: modifiedHeaders } : {});
+    } else if (regJoin.test(url)) {
+        const match = regJoin.exec(url);
+        const id = match && match[1] ? match[1] : '';
+        if (id) {
+            const removedRaw = readStore('TF_REMOVED_IDS', '');
+            if (removedRaw) {
+                const nextRemoved = String(removedRaw).split(/[,;|+\s]+/).filter((x) => x && x !== id);
+                writeStore(nextRemoved.join(','), 'TF_REMOVED_IDS');
+            }
+        }
+        let appId = ensureDefaultAppId();
+        const arr = appId ? appId.split(/[,;|+\s]+/).map((s) => s.trim()).filter(Boolean) : [];
+        if (id && !arr.includes(id)) {
+            arr.push(id);
+            appId = Array.from(new Set(arr)).join(',');
+            writeStore(appId, 'APP_ID');
+            notifyUser('✈️ Đã thêm APP_ID TestFlight', `Mã mới: ${id}`, `Danh sách hiện tại: ${appId}`);
+        }
+        $done({});
+    } else if (regDevices.test(url)) {
+        const lastTs = parseInt(readStore('TF_LAST_SWITCH_TS', '0'), 10);
+        if (isNaN(lastTs) || Date.now() - lastTs >= 2000) {
+            const pool = readAccountsPool();
+            if (pool.length > 1) {
+                writeStore(String(Date.now()), 'TF_LAST_SWITCH_TS');
+                let idx = parseInt(readStore('TF_ACTIVE_ACCOUNT_IDX', '0'), 10);
+                if (isNaN(idx) || idx < 0) idx = 0;
+                idx = (idx + 1) % pool.length;
+                const nextAcc = pool[idx];
+                writeStore(String(idx), 'TF_ACTIVE_ACCOUNT_IDX');
+                writeStore(nextAcc.key, 'key');
+                writeStore(nextAcc.session_id, 'session_id');
+                writeStore(nextAcc.session_digest, 'session_digest');
+                writeStore(nextAcc.request_id, 'request_id');
+                if (nextAcc.tf_ua) writeStore(nextAcc.tf_ua, 'tf_ua');
+                notifyUser(
+                    '🔄 Đã tự động đổi Apple ID',
+                    `Đang dùng: ${nextAcc.name || 'AppleID #' + (idx + 1)}`,
+                    `Tổng số tài khoản đã lưu: ${pool.length}`
+                );
+            }
+        }
+        $done({});
+    } else {
+        $done({});
+    }
 } else {
-  $done({});
+    $done({});
 }

@@ -1,21 +1,22 @@
 /*
 Script Author: Hely-T
-Upgraded: v4.6.0.0 (Quantumult X / Universal + Auto-seed Google Chrome beta LPQmtkUs + Multi-Account support)
+Upgraded: v5.1.0.0 (Quantumult X / Universal + Auto-seed 5 Default Beta Apps + Multi-Account support)
 Reference: https://github.com/bunnytaidai/TestFlight-All/
 */
+const DEFAULT_BETA_CSV = "rqvYCYOp,YSo8aVCS,m2kxP5cw,LPQmtkUs,Xh9VNQoA";
 const DEFAULT_CHROME_BETA_ID = "LPQmtkUs";
 
 !(async () => {
   let ids = $prefs.valueForKey("APP_ID");
   if (ids === undefined || ids === null) {
-    ids = DEFAULT_CHROME_BETA_ID;
+    ids = DEFAULT_BETA_CSV;
     $prefs.setValueForKey(ids, "APP_ID");
   }
   if (ids == "") {
     $notify("Tất cả TestFlight đã được thêm vào", "Vui lòng tắt plugin theo cách thủ công", "");
     $done();
   } else {
-    ids = ids.split(",").map((s) => s.trim()).filter(Boolean);
+    ids = ids.split(/[,;|+\s]+/).map((s) => s.trim()).filter(Boolean);
     try {
       for await (const ID of ids) {
         await autoPost(ID);

@@ -1,0 +1,21 @@
+#!name = Chẩn Đoán Gói Tin StoreKit Sandbox (Chỉ Đọc - Kiểm Toán Mạng)
+#!desc = Ghi log chẩn đoán chỉ đọc (Read-Only) các gói tin kiểm thử StoreKit Sandbox (sandbox.itunes.apple.com, mzstorekit-sb.itunes.apple.com), tự động ẩn Token xác thực. Lưu ý: storekitd/itunesstored có SSL Pinning của Apple trên iOS gốc.
+#!author = Antigravity Audit (v1.0.0.0)
+#!homepage = https://developer.apple.com/documentation/storekit/in-app_purchase/testing_in-app_purchases_with_sandbox
+#!icon = https://raw.githubusercontent.com/Orz-3/mini/master/Color/appstore.png
+#!select = NotifyToast, false, true
+#!date = 2026-11-15 06:00:00
+
+[Rule]
+DOMAIN-SUFFIX, sandbox.itunes.apple.com, DIRECT
+DOMAIN-SUFFIX, mzstorekit-sb.itunes.apple.com, DIRECT
+
+[Script]
+# Chẩn đoán Request Sandbox (Chỉ đọc - giữ nguyên 100% gói tin gốc)
+http-request ^https?:\/\/(sandbox\.itunes\.apple\.com|mzstorekit-sb\.itunes\.apple\.com)\/.* script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/Sandbox_StoreKit_Inspector.js, requires-body = true, timeout = 30, tag = Sandbox StoreKit Request Log, argument = [NotifyToast]
+
+# Chẩn đoán Response Sandbox (Chỉ đọc - giữ nguyên 100% gói tin gốc)
+http-response ^https?:\/\/(sandbox\.itunes\.apple\.com|mzstorekit-sb\.itunes\.apple\.com)\/.* script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/Sandbox_StoreKit_Inspector.js, requires-body = true, timeout = 30, tag = Sandbox StoreKit Response Log, argument = [NotifyToast]
+
+[Mitm]
+hostname = sandbox.itunes.apple.com, mzstorekit-sb.itunes.apple.com

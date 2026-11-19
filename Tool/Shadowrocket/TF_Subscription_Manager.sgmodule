@@ -1,0 +1,25 @@
+#!name=📦 Quản Lý Gói Đăng Ký TestFlight & Đảo Nick Apple ID (tf-sub.test)
+#!desc=Quan sát chỉ đọc (Read-Only) các gói đăng ký TestFlight / Sandbox đã mua theo từng nick Apple ID, chọn cố định gói cần theo dõi gia hạn tại http://tf-sub.test/ và nhắc gia hạn 1 chạm khi hết chu kỳ Sandbox.
+#!openUrl=http://tf-sub.test/
+#!author=Hely-T & Antigravity (v5.2.0.0)
+#!homepage=https://github.com/bunnytaidai/TestFlight-All
+#!icon=https://raw.githubusercontent.com/Orz-3/mini/master/Color/appstore.png
+
+[Rule]
+DOMAIN,tf-sub.test,DIRECT
+DOMAIN-SUFFIX,sandbox.itunes.apple.com,DIRECT
+DOMAIN-SUFFIX,mzstorekit-sb.itunes.apple.com,DIRECT
+DOMAIN-SUFFIX,api.storekit-sandbox.itunes.apple.com,DIRECT
+
+[Host]
+tf-sub.test = 127.0.0.1
+
+[Script]
+TF_Sub_Web = type=http-request,pattern=^http:\/\/tf-sub\.test(\/.*)?$,requires-body=1,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Subscription_Manager.js,timeout=20
+TF_Sub_Observer = type=http-response,pattern=^https?:\/\/(sandbox\.itunes\.apple\.com|mzstorekit-sb\.itunes\.apple\.com|api\.storekit-sandbox\.itunes\.apple\.com)\/.*,requires-body=1,max-size=-1,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Subscription_Manager.js,timeout=25
+TF_Sub_Cron = type=cron,cronexp="0 */15 * * * *",script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Subscription_Manager.js,timeout=20
+
+[MITM]
+hostname = %APPEND% sandbox.itunes.apple.com, mzstorekit-sb.itunes.apple.com, api.storekit-sandbox.itunes.apple.com
+enable = true
+h2 = true
