@@ -212,6 +212,126 @@
         "https://developer.apple.com/assets/elements/icons/testflight/testflight-64x64_2x.png",
         "https://developer.apple.com/assets/elements/icons/testflight/testflight-64x64_2x.png"
       ]
+    },
+    {
+      "id": "TF_MultiAccount_Hub",
+      "name": "✈️ TF Multi-Account Hub (NobyDa + iRingo + Sniper + GUI)",
+      "keys": [
+        "TF_HUB_ACCOUNTS",
+        "TF_HUB_APPLIST",
+        "TF_HUB_MODE",
+        "TF_HUB_ACTIVE_ID",
+        "TF_HUB_COUNTRY",
+        "TF_HUB_UNIVERSAL",
+        "TF_HUB_ALWAYS_INSTALL",
+        "TF_HUB_JOIN_CODES",
+        "TF_HUB_AUTO_JOIN",
+        "TF_HUB_AUTO_INSTALL",
+        "TF_HUB_KEEPALIVE_MIN",
+        "TF_HUB_LOGS"
+      ],
+      "descs_html": [
+        "Trung tâm hợp nhất <b>NobyDa + iRingo + Săn Slot + Nuôi Token</b> cho Loon & Shadowrocket (tối ưu RAM A9 iOS 15.8.8).",
+        "Mở giao diện Web quản trị trực quan: <a href=\"http://tf-hub.test/\" target=\"_blank\">http://tf-hub.test/</a>"
+      ],
+      "settings": [
+        {
+          "id": "TF_HUB_MODE",
+          "name": "Chế độ tráo tài khoản",
+          "val": "MERGE",
+          "type": "selects",
+          "items": [
+            { "key": "MERGE", "label": "🔀 MERGE — Gộp list mọi nick (kiểu NobyDa)" },
+            { "key": "PIN", "label": "📌 PIN — Khóa 1 nick cố định (kiểu iRingo)" }
+          ],
+          "desc": "MERGE tự gộp app mọi nick và tự tráo nick khi bấm cài; PIN khóa cứng về nick đang chọn ở TF_HUB_ACTIVE_ID."
+        },
+        {
+          "id": "TF_HUB_ACTIVE_ID",
+          "name": "UUID Nick đang ghim (khi chọn chế độ PIN)",
+          "val": "",
+          "type": "text",
+          "placeholder": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+          "desc": "Có thể bấm nút Ghim trực tiếp trên http://tf-hub.test/."
+        },
+        {
+          "id": "TF_HUB_COUNTRY",
+          "name": "Phá giới hạn vùng (Storefront)",
+          "val": "US",
+          "type": "selects",
+          "items": [
+            { "key": "US", "label": "🇺🇸 Mỹ (143441)" },
+            { "key": "VN", "label": "🇻🇳 Việt Nam (143471)" },
+            { "key": "JP", "label": "🇯🇵 Nhật Bản (143462)" },
+            { "key": "SG", "label": "🇸🇬 Singapore (143464)" },
+            { "key": "TW", "label": "🇹🇼 Đài Loan (143470)" },
+            { "key": "HK", "label": "🇭🇰 Hồng Kông (143463)" },
+            { "key": "GB", "label": "🇬🇧 Anh (143444)" },
+            { "key": "AUTO", "label": "🇺🇳 Tự động (Không sửa)" }
+          ],
+          "desc": "Tự thay mã Storefront khi xác thực phiên và khi cài đặt app."
+        },
+        {
+          "id": "TF_HUB_UNIVERSAL",
+          "name": "Lách iOS cũ & mở khóa thiết bị (modBuild)",
+          "val": true,
+          "type": "boolean",
+          "desc": "Ép compatible/osCompatible/hardwareCompatible = true cho máy A9 iOS 15.8.8."
+        },
+        {
+          "id": "TF_HUB_ALWAYS_INSTALL",
+          "name": "Ép hiện nút Cài đặt khi beta báo đầy",
+          "val": true,
+          "type": "boolean",
+          "desc": "Chuyển status FULL sang OPEN trên trang chi tiết lời mời (/ru/)."
+        },
+        {
+          "id": "TF_HUB_AUTO_JOIN",
+          "name": "Bật tự động săn & tham gia link TestFlight",
+          "val": true,
+          "type": "boolean",
+          "desc": "Cron tự quét công khai /join/{code}, khi OPEN tự gửi POST /accept."
+        },
+        {
+          "id": "TF_HUB_AUTO_INSTALL",
+          "name": "Tự gửi tiếp lệnh /install sau khi Accept",
+          "val": false,
+          "type": "boolean",
+          "desc": "Nếu API trả về appAdamId & buildId, tự bắn tiếp yêu cầu /install đã phá vùng."
+        },
+        {
+          "id": "TF_HUB_KEEPALIVE_MIN",
+          "name": "Chu kỳ ping nuôi token (phút)",
+          "val": "30",
+          "type": "number",
+          "placeholder": "30",
+          "desc": "Ping định kỳ từng nick để giữ phiên sống và cảnh báo sớm khi có nick bị 401."
+        },
+        {
+          "id": "TF_HUB_JOIN_CODES",
+          "name": "Danh sách mã / link TestFlight tự động tham gia",
+          "val": "",
+          "type": "text",
+          "placeholder": "LPQmtkUs,Xh9VNQoA",
+          "desc": "Ngăn cách nhiều mã hoặc link bằng dấu phẩy (,)."
+        },
+        {
+          "id": "TF_HUB_ACCOUNTS",
+          "name": "Kho Apple ID & Token đã lưu (JSON)",
+          "val": "{}",
+          "type": "textarea",
+          "autoGrow": true,
+          "rows": 4,
+          "desc": "Tự động lưu UUID, x-session-id, x-request-id, x-session-digest của từng nick."
+        }
+      ],
+      "author": "@Hely-T & Antigravity",
+      "repo": "https://github.com/bunnytaidai/TestFlight-All",
+      "script": "https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js",
+      "icons": [
+        "https://raw.githubusercontent.com/Orz-3/mini/master/Alpha/testflight.png",
+        "https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png"
+      ]
     }
   ]
 }

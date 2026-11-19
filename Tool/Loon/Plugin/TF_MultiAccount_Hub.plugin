@@ -1,0 +1,35 @@
+#!name = ✈️ TF Multi-Account Hub (NobyDa + iRingo + Sniper + GUI)
+#!desc = Hợp nhất lưu & tráo nhiều Apple ID (MERGE kiểu NobyDa / PIN kiểu iRingo), nuôi token chống die 401, tự động săn & tham gia link TestFlight, lách iOS 15.8.8 (modBuild + AlwaysShowInstall) & phá giới hạn vùng. Giao diện Web nội bộ: http://tf-hub.test/ (đồng bộ BoxJs). Lưu ý: Tắt các plugin TestFlight/NobyDa/iRingo riêng lẻ trước khi bật plugin này để tránh xung đột MITM.
+#!openUrl = http://tf-hub.test/
+#!author = Hely-T & Antigravity (v1.0.0.0)
+#!homepage = https://github.com/bunnytaidai/TestFlight-All
+#!icon = https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png
+#!date = 2026-11-19 13:42:00
+
+[General]
+skip-proxy = iosapps.itunes.apple.com
+force-http-engine-hosts = tf-hub.test
+
+[Rule]
+DOMAIN, tf-hub.test, DIRECT
+DOMAIN-KEYWORD, testflight.apple.com, DIRECT
+
+[Host]
+tf-hub.test = 127.0.0.1
+
+[Script]
+# 1. Giao diện Web điều khiển nội bộ (http://tf-hub.test/) — xem/sửa UUID, Token, công tắc, bấm Ping/Snipe
+http-request ^http:\/\/tf-hub\.test(\/.*)?$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js, requires-body = true, timeout = 25, tag = TF Hub Web UI (tf-hub.test)
+
+# 2. Chặn Request TestFlight — Chụp đa nick, tráo MERGE/PIN & phá giới hạn vùng Storefront
+http-request ^https?:\/\/testflight\.apple\.com\/ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js, requires-body = true, max-size = 524288, timeout = 20, tag = TF Hub Request (Đa Nick & Phá Vùng)
+
+# 3. Chặn Response TestFlight — Lách iOS cũ (modBuild) & ép hiện nút Cài đặt (AlwaysShowInstall)
+http-response ^https?:\/\/testflight\.apple\.com\/ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js, requires-body = true, max-size = 524288, timeout = 20, tag = TF Hub Response (Lách iOS Cũ)
+
+# 4. Cron ngầm mỗi 5 phút — Ping nuôi token định kỳ (theo chu kỳ KEEP_ALIVE) + Săn & Accept link TestFlight
+cron "0 */5 * * * *" script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js, timeout = 25, tag = TF Hub Cron (Nuôi Token & Auto Join)
+
+[MITM]
+hostname = testflight.apple.com
+

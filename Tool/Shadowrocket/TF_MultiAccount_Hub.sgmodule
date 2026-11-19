@@ -1,0 +1,26 @@
+#!name=✈️ TF Multi-Account Hub (NobyDa + iRingo + Sniper + GUI)
+#!desc=Hợp nhất lưu & tráo nhiều Apple ID (MERGE kiểu NobyDa / PIN kiểu iRingo), nuôi token chống die 401, tự động săn & tham gia link TestFlight, lách iOS 15.8.8 (modBuild + AlwaysShowInstall) & phá giới hạn vùng. Giao diện Web nội bộ: http://tf-hub.test/ (đồng bộ BoxJs). Lưu ý: Tắt các module TestFlight/NobyDa/iRingo riêng lẻ trước khi bật module này để tránh xung đột MITM.
+#!openUrl=http://tf-hub.test/
+#!author=Hely-T & Antigravity (v1.0.0.0)
+#!homepage=https://github.com/bunnytaidai/TestFlight-All
+#!icon=https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png
+
+[General]
+skip-proxy = %APPEND% iosapps.itunes.apple.com
+
+[Rule]
+DOMAIN,tf-hub.test,DIRECT
+DOMAIN-KEYWORD,testflight.apple.com,DIRECT
+
+[Host]
+tf-hub.test = 127.0.0.1
+
+[Script]
+TF_Hub_WebUI = type=http-request,pattern=^http:\/\/tf-hub\.test(\/.*)?$,requires-body=1,timeout=25,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js
+TF_Hub_Request = type=http-request,pattern=^https?:\/\/testflight\.apple\.com\/,requires-body=1,max-size=524288,timeout=20,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js
+TF_Hub_Response = type=http-response,pattern=^https?:\/\/testflight\.apple\.com\/,requires-body=1,max-size=524288,timeout=20,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js
+TF_Hub_Cron = type=cron,cronexp="0 */5 * * * *",timeout=25,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js
+
+[MITM]
+hostname = %APPEND% testflight.apple.com
+
