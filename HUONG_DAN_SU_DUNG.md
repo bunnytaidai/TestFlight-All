@@ -1,140 +1,87 @@
-# 📘 HƯỚNG DẪN SỬ DỤNG TRỌN BỘ TESTFLIGHT CHO LOON & SHADOWROCKET (`version.5.4.1.0`)
+# 📘 HƯỚNG DẪN CÀI ĐẶT & SỬ DỤNG CHI TIẾT — TESTFLIGHT ALL-IN-ONE (`version.5.5.0.0`)
 
-> **Tối ưu riêng cho:** iPhone chip A9 (`iPhone 6s / 6s Plus / SE 1`) chạy **iOS 15.8.8 Rootless (`/var/jb`) + SSL Kill Switch 3**, giữ bộ nhớ `NetworkExtension` nhẹ gọn.
-
----
-
-## ⭐ 0. TRUNG TÂM ALL-IN-ONE 3 TAB (`TF_MultiAccount_Hub v2.0.1.0` — KHUYÊN DÙNG CHÍNH)
-
-Hợp nhất **`NobyDa` + `iRingo` + `CRUD Link TestFlight` + `Batch Actions` + `StoreKit 1/2 Sandbox`** vào **đúng 1 Plugin Loon / 1 Module Shadowrocket duy nhất** *(lưu ý: tắt các plugin TestFlight/NobyDa/iRingo riêng lẻ trước khi bật để tránh xung đột MITM)*:
-
-- **Loon (`.plugin`):**
-  ```text
-  https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Loon/Plugin/TF_MultiAccount_Hub.plugin
-  ```
-- **Shadowrocket (`.sgmodule`):**
-  ```text
-  https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/TF_MultiAccount_Hub.sgmodule
-  ```
-- **BoxJs Subscription (`boxjs.json`):**
-  ```text
-  https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/boxjs.json
-  ```
-- **Giao diện Web điều khiển 3 Tab trên Safari:** `http://tf-hub.test/`
-  1. **Tab 1 (`Link TF`):** Thêm / Sửa tên / Xóa từng link, kiểm tra trạng thái (`OPEN`/`FULL`/`CLOSED`), bấm cho toàn bộ nick `ALIVE` cùng tham gia.
-  2. **Tab 2 (`Nick & API`):** Hiển thị rõ `accountId` (UUID) + 3 Token (`x-session-id`, `x-request-id`, `x-session-digest`), chuyển `MERGE`/`PIN`, ping nuôi token chống die `401`, quét app & gửi `/install`, lách iOS cũ (`modBuild` + `AlwaysShowInstall`) & phá vùng `Storefront`.
-  3. **Tab 3 (`Gói Sandbox`):** Theo dõi **chỉ đọc** gói đăng ký kiểm thử StoreKit 1 & 2 theo từng Apple ID, tích Watchlist & nhắc gia hạn 1 chạm.
+> **Tối ưu chuyên sâu cho:** iPhone chip A9 (`iPhone 6s / 6s Plus / SE 1`) chạy **iOS 15.8.8 Rootless (`/var/jb`) + Tweak `SSL Kill Switch 3`** trên **Loon** *(ưu tiên mạnh nhất)* và **Shadowrocket**.
 
 ---
 
-## 🎯 1. DANH SÁCH 5 LINK TESTFLIGHT ĐÃ CẤU HÌNH SẴN (TỰ SĂN SLOT + TỰ ĐẢO NICK)
+## 1. BẢN ĐỒ GẮN FILE CHÍNH XÁC — FILE NÀO GẮN VÀO MỤC NÀO?
 
-1. **Google Chrome beta (`LPQmtkUs`):**
-   `https://testflight.apple.com/join/LPQmtkUs`
-2. **Aloha Browser – Private VPN beta (`Xh9VNQoA`):**
-   `https://testflight.apple.com/join/Xh9VNQoA`
-3. **VilaNet beta (`2mcx1R3I`):**
-   `https://testflight.apple.com/join/2mcx1R3I`
-4. **Notion: Notes, Tasks, AI beta (`YSo8aVCS`):**
-   `https://testflight.apple.com/join/YSo8aVCS`
-5. **Notion Calendar Next beta (`CzpZHGuS`):**
-   `https://testflight.apple.com/join/CzpZHGuS`
+> [!IMPORTANT]
+> **Nguyên tắc chống xung đột MITM:** Nếu bạn dùng trung tâm chính **`TF_MultiAccount_Hub v2.1.0.0`**, hãy **TẮT** các plugin/module TestFlight rời cũ *(như `TestFlight.plugin`, `Auto_Join_TF.plugin`, `TF_Subscription_Manager.plugin`, `iRingo`, `NobyDa`)* vì Hub v2.1.0.0 đã gộp toàn bộ chức năng vào cùng 1 lõi duy nhất.
 
----
+### 🦅 A. Bản đồ gắn file cho **LOON** *(Khuyên dùng mạnh nhất)*
 
-## 🔗 2. TỔNG HỢP TOÀN BỘ LINK RAW CẦN ADD (CHỈ CẦN COPY DÁN)
+| Tệp trong repo | Link Raw GitHub để Copy dán | Gắn vào đúng mục nào trong App Loon? | Bắt buộc? |
+| :--- | :--- | :--- | :---: |
+| **`TF_MultiAccount_Hub.plugin`** *(v2.1.0.0 — Trung tâm 4 Tab)* | `https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Loon/Plugin/TF_MultiAccount_Hub.plugin` | **Cấu hình (`Config`) ➔ Tiện ích (`Plugins`) ➔ bấm dấu `+` góc phải ➔ dán Link ➔ Lưu & Bật công tắc xanh** | 🟢 **Bắt buộc (Chính)** |
+| **`BoxJs.plugin`** *(tùy chọn nếu muốn thêm giao diện BoxJs)* | `https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Loon/Plugin/BoxJs.plugin` | **Cấu hình (`Config`) ➔ Tiện ích (`Plugins`) ➔ dấu `+` ➔ dán Link ➔ Bật** | 🟡 Tùy chọn *(vì Hub đã có sẵn Web UI tại `http://tf-hub.test/`)* |
+| **`boxjs.json`** *(danh sách đăng ký BoxJs)* | `https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/boxjs.json` | Mở Safari vào `http://boxjs.com` ➔ mục **Đăng ký (`Subscribe`)** ➔ dấu `+` ➔ dán Link | 🟡 Tùy chọn |
+| **`Loon_All_In_One.conf`** *(nếu muốn nạp trọn bộ cấu hình mẫu)* | `https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Loon/Config/Loon_All_In_One.conf` | **Cấu hình (`Config`) ➔ Quản lý cấu hình ➔ Nhập từ URL (`Import from URL`)** | ⚪ Chỉ dùng khi chưa có Config Loon riêng |
+| **`Tool/Loon/Rule/*.list`** *(Rule định tuyến Apple)* | `https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Loon/Rule/<tên>.list` | **Cấu hình (`Config`) ➔ Quy tắc (`Rules`) ➔ Quy tắc từ xa (`Remote Rules`)** *(đã tự tích hợp sẵn trong `Loon_All_In_One.conf`)* | ⚪ Không cần gắn lẻ nếu đã bật Hub Plugin |
 
-### 🦅 A. Dành cho **LOON**
-* **Link File Cấu Hình Full (Khuyên dùng — chỉ cần add đúng 1 link này):**
-  ```text
-  https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Loon/Config/Loon_All_In_One.conf
-  ```
-* *(Tùy chọn)* Nếu dùng cấu hình Loon riêng của bạn, chỉ cần add lẻ các **Plugin** sau:
-  * **Tự vào 5 link TestFlight 2 tầng + Tự đảo nick Apple ID:**
-    ```text
-    https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Loon/Plugin/Auto_Join_TF.plugin
-    ```
-  * **Kho Token Apple ID + Tự `GET` App từng nick + Quản lý gói Sandbox (`http://tf-sub.test/`):**
-    ```text
-    https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Loon/Plugin/TF_Subscription_Manager.plugin
-    ```
-  * **Đa tài khoản & Mở khóa thiết bị + Tải nhanh CDN:**
-    ```text
-    https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Loon/Plugin/TestFlight.plugin
-    ```
-  * **Radar canh slot công khai không cần Token (`http://tf-radar.test/`):**
-    ```text
-    https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Loon/Plugin/TF_Slot_Radar.plugin
-    ```
-  * **BoxJS (`http://boxjs.com/`):**
-    ```text
-    https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Loon/Plugin/BoxJs.plugin
-    ```
+<br>
 
-### 🚀 B. Dành cho **SHADOWROCKET**
-* **Link File Cấu Hình Full (Khuyên dùng — chỉ cần add đúng 1 link này):**
-  ```text
-  https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/Shadowrocket_All_In_One.conf
-  ```
-* *(Tùy chọn)* Nếu dùng cấu hình Shadowrocket riêng, add lẻ các **Module (`.sgmodule`)** sau:
-  * **Tự vào 5 link TestFlight 2 tầng + Tự đảo nick Apple ID:**
-    ```text
-    https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/Auto_Join_TF.sgmodule
-    ```
-  * **Kho Token Apple ID + Tự `GET` App từng nick + Quản lý gói Sandbox (`http://tf-sub.test/`):**
-    ```text
-    https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/TF_Subscription_Manager.sgmodule
-    ```
-  * **Đa tài khoản & Mở khóa thiết bị + Tải nhanh CDN:**
-    ```text
-    https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/TestFlight_Unlock_Multi.sgmodule
-    ```
-  * **BoxJS (`http://boxjs.com/`):**
-    ```text
-    https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/BoxJs.sgmodule
-    ```
+### 🚀 B. Bản đồ gắn file cho **SHADOWROCKET**
 
-### 📦 C. Link Đăng Ký **BoxJS** (Dán vào `http://boxjs.com/` ➔ Mục Đăng ký / Subscriptions)
-```text
-https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/boxjs.json
-```
+| Tệp trong repo | Link Raw GitHub để Copy dán | Gắn vào đúng mục nào trong App Shadowrocket? | Bắt buộc? |
+| :--- | :--- | :--- | :---: |
+| **`TF_MultiAccount_Hub.sgmodule`** *(v2.1.0.0 — Trung tâm 4 Tab)* | `https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/TF_MultiAccount_Hub.sgmodule` | **Cấu hình (`Config`) ➔ Mô-đun (`Modules`) ➔ bấm dấu `+` góc phải ➔ dán Link ➔ Tải về & Tích chọn bật** | 🟢 **Bắt buộc (Chính)** |
+| **`BoxJs.sgmodule`** | `https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/BoxJs.sgmodule` | **Cấu hình (`Config`) ➔ Mô-đun (`Modules`) ➔ dấu `+` ➔ dán Link ➔ Bật** | 🟡 Tùy chọn |
+| **`boxjs.json`** | `https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/boxjs.json` | Safari ➔ `http://boxjs.com` ➔ **Đăng ký (`Subscribe`)** ➔ dấu `+` ➔ dán Link | 🟡 Tùy chọn |
+| **`Shadowrocket_All_In_One.conf`** | `https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/Shadowrocket_All_In_One.conf` | **Cấu hình (`Config`) ➔ dấu `+` góc phải trên ➔ dán Link ➔ Tải về ➔ bấm vào file chọn *Sử dụng cấu hình (`Use Config`)*** | ⚪ Chỉ dùng khi chưa có Config Shadowrocket riêng |
+
+> [!NOTE]
+> Các tệp `.js` nằm trong `Resource/Script/TestFlight/` **KHÔNG cần tự gắn thủ công** — chúng đã được các tệp `.plugin` (Loon) và `.sgmodule` (Shadowrocket) tự động gọi qua `script-path`.
 
 ---
 
-## 🌐 3. 6 TRANG WEB ĐIỀU KHIỂN NỘI BỘ (MỞ BẰNG SAFARI KHI BẬT VPN — TẢI `0ms`)
+## 2. QUY TRÌNH CÀI ĐẶT TỪ A–Z TRÊN A9 iOS 15.8.8 (`SSL KILL SWITCH 3`)
 
-| Đường dẫn mở trên Safari | Chức năng chính |
-| :--- | :--- |
-| `http://tf-sub.test/` | **Trung tâm chính:** Xem kho Token Apple ID đã lưu, đổi nick 1 chạm (không hỏi lại OTP/2FA), bấm **Quét (`GET`) App tất cả nick**, chọn cố định gói mua kiểm thử Sandbox cần theo dõi gia hạn. |
-| `http://boxjs.com/` | Xem/chỉnh sửa/sao lưu JSON toàn bộ biến `TF_ACCOUNTS`, `APP_ID`, `TF_SANDBOX_SUBSCRIPTIONS`, `TF_SUB_WATCHLIST`. |
-| `http://tf-radar.test/` | Radar canh 5 slot TestFlight công khai (không tốn Token Apple ID). |
-| `http://tf-link.test/` | Quản lý hàng đợi link TestFlight & dán nhanh nhiều link cùng lúc. |
-| `http://tf-status.test/` | Đếm ngược hạn **90 ngày** của từng app Beta & báo Build mới. |
-| `http://tf-diag.test/` | Kiểm tra độ trễ mạng & bắt bệnh thiếu chứng chỉ CA / HTTP2. |
+### Bước 1 — Bật giải mã HTTPS (`MITM`) & Chứng chỉ CA
+1. **Trên thiết bị Jailbreak iOS 15.8.8:** Đảm bảo Tweak **`SSL Kill Switch 3`** đã bật cho ứng dụng **TestFlight** *(và các app Beta cần theo dõi gói Sandbox)*.
+2. **Trên Loon:**
+   - Vào **Cấu hình (`Config`) ➔ `MITM`** ➔ Bật công tắc **`MITM`**.
+   - Bấm **Tạo chứng chỉ CA mới (`Generate CA`)** ➔ **Cài đặt chứng chỉ (`Install Certificate`)**.
+   - Vào **Cài đặt iOS ➔ Đã tải về hồ sơ (`Profile Downloaded`)** ➔ Cài đặt.
+   - Vào **Cài đặt iOS ➔ Cài đặt chung ➔ Giới thiệu ➔ Cài đặt tin cậy chứng chỉ (`Certificate Trust Settings`)** ➔ Gạt **BẬT** cho chứng chỉ Loon.
+3. **Trên Shadowrocket:**
+   - Vào **Cấu hình (`Config`) ➔ bấm chữ `i` ở file `.conf` đang dùng ➔ Giải mã HTTPS (`HTTPS Decryption`)** ➔ Gạt **BẬT** ➔ **Tạo chứng chỉ CA mới** ➔ Cài hồ sơ & Tin cậy chứng chỉ trong Cài đặt iOS giống bước trên.
+
+### Bước 2 — Gắn Plugin / Module Chính & Cấu hình nhanh trên Loon
+1. Gắn **`TF_MultiAccount_Hub.plugin`** *(Loon)* hoặc **`TF_MultiAccount_Hub.sgmodule`** *(Shadowrocket)* theo đúng bảng ở **Mục 1**.
+2. **Riêng trên Loon (tính năng `[Argument]` nâng cao):** Bấm thẳng vào tên plugin **`✈️ TF Multi-Account Hub v2.1.0.0`** trong mục *Plugins* để chỉnh nhanh trực tiếp 5 tham số ngay trên giao diện Loon:
+   - `HUB_MODE`: `MERGE` *(gộp app mọi nick)* hoặc `PIN` *(khóa 1 nick cố định)*
+   - `HUB_COUNTRY`: `US` *(hoặc `VN`, `JP`, `SG`, ...)*
+   - `HUB_KEEPALIVE`: `30` *(phút ping nuôi token)*
+   - `HUB_AUTO_JOIN`: `true` *(tự động săn & `POST /accept` link `OPEN`)*
+   - `HUB_AUTO_UPDATE`: `true` *(tự phát hiện build mới & replay `POST /install`)*
+3. Bật kết nối VPN của Loon / Shadowrocket.
+
+### Bước 3 — Nạp Kho Nhiều Nick Apple ID *(Tránh bị hỏi 2FA lại)*
+1. Đăng nhập **Apple ID thứ 1** trên máy ➔ mở ứng dụng **TestFlight** và kéo làm mới danh sách 1 lần.
+2. Khi thấy thông báo **`TF Hub v2.1 — Đã Chụp Nick Mới`**, Hub đã tự động lưu trọn bộ tham số phiên & thiết bị (`accountId` UUID, `x-session-id`, `x-request-id`, `x-session-digest`, `x-dsid`, `x-apple-i-md*`, `deviceId`, `storefrontId`, `User-Agent`).
+3. Lặp lại cho **Apple ID thứ 2, thứ 3...** Sau khi chụp xong, **không cần đăng xuất/đăng nhập lại** — Hub sẽ tự replay đúng bộ fingerprint thiết bị khi chạy ngầm để hạn chế tối đa việc bị Apple thu hồi phiên hoặc yêu cầu 2FA lại.
 
 ---
 
-## 🛠️ 4. CÁC BƯỚC THIẾT LẬP TỪ A–Z TRÊN IPHONE A9 IOS 15.8.8
+## 3. HƯỚNG DẪN SỬ DỤNG 4 TAB TRÊN GIAO DIỆN WEB (`http://tf-hub.test/`)
 
-### Bước 1: Nhập Cấu Hình Full
-* **Trên Loon:** Vào `Configuration File` ➔ bấm dấu **`+`** ➔ **Import from URL** ➔ dán link `Loon_All_In_One.conf` ➔ chọn kích hoạt.
-* **Trên Shadowrocket:** Vào tab **Cấu hình** ➔ bấm **`+`** ➔ dán link `Shadowrocket_All_In_One.conf` ➔ bấm **Tải về** ➔ chạm vào tệp chọn **Sử dụng Config**.
+Mở **Safari** trên iPhone (khi đang bật Loon/Shadowrocket) và truy cập: **`http://tf-hub.test/`**
 
-### Bước 2: Bật Chứng Chỉ CA & MitM HTTP/2 (Bắt buộc)
-1. Tạo & cài đặt chứng chỉ CA trong mục **MITM** (Loon) hoặc **Giải mã HTTPS** (Shadowrocket).
-2. Vào **Cài đặt iOS ➔ Đã tải về hồ sơ** ➔ Cài đặt chứng chỉ.
-3. Vào **Cài đặt iOS ➔ Cài đặt chung ➔ Giới thiệu ➔ Cài đặt tin cậy chứng chỉ** ➔ Bật xanh chứng chỉ Loon/Shadowrocket.
-4. Bật công tắc **MITM + HTTP/2** rồi **Bật VPN** *(chỉ bật 1 trong 2 app tại một thời điểm)*.
+| Tab | Chức năng chi tiết | Thao tác chính |
+| :--- | :--- | :--- |
+| **Tab 1: `🔗 Link TF`** | Quản lý Thêm / Sửa / Xóa & tự động kiểm tra trạng thái Link TestFlight | Dán 1 hoặc nhiều link/mã vào ô nhập ➔ bấm **💾 Thêm & Lưu Link** ➔ bấm **🔍 Quét Trạng Thái Tất Cả** (`OPEN`/`FULL`/`CLOSED`) ➔ bấm **🎯 Tự Tham Gia Toàn Bộ Link OPEN** *(hoặc bấm nút bắn từng link)*. |
+| **Tab 2: `👥 Nick & API`** | Quản lý Kho Apple ID, xem đủ tham số Token/Fingerprint (`FP x/7`) & điều khiển API Replay | Xem toàn bộ `accountId` + 3 Token + `DSID`/`Device`/`MD`; bấm **💓 Ping Nuôi & Quét Cập Nhật Toàn Bộ**; bấm **⬇️ Replay `/install`** cho từng app; chuyển `MERGE`/`PIN`; bật/tắt **Lách iOS cũ**, **Ép nút Cài**, **Auto-Join**, **Auto Cập nhật**. |
+| **Tab 3: `💳 Sandbox`** | Kiểm tra trạng thái gói đăng ký kiểm thử StoreKit 1 & 2 theo từng Apple ID *(Chỉ đọc)* | Mở app TestFlight có gói Sandbox để Hub tự ghi nhận `productId`, `expiresDate`, `autoRenewStatus`; bấm **☆ Bật nhắc gia hạn** *(Watchlist)* để Cron tự cảnh báo + mở trang thuê bao iOS khi sắp hết chu kỳ Sandbox. |
+| **Tab 4: `📊 Log`** | Bảng kiểm tra trạng thái hoạt động & kết quả từng hành động của Tool | Lọc theo **`OK` / `WARN` / `ERR`**; xem rõ giờ chạy, tên hành động (`PING_SYNC`, `CHECK_LINK`, `ACCEPT_API`, `INSTALL_API`, `MERGE_LIST`, `SANDBOX_RO`), mã HTTP và độ trễ (`ms`). |
 
-### Bước 3: Lưu Token Nhiều Nick Apple ID (Chạy Ngầm Không Hỏi Lại OTP / 2FA)
-1. Đăng nhập sẵn nick Apple ID số 1 *(đã qua OTP/2FA)* ➔ mở ứng dụng **TestFlight** 1 lần.
-2. Hệ thống tự động bắt & lưu đủ **5 tham số phiên** vào kho `TF_ACCOUNTS`:
-   - `key` (`account_id`), `session_id` (`X-Session-Id`), `session_digest` (`X-Session-Digest`), `request_id` (`X-Request-Id`), `tf_ua` (`User-Agent`).
-3. Thấy thông báo **`🎉 Đã lưu Token Apple ID #1`** ➔ lặp lại với nick số 2, số 3...
-4. Từ lúc này, Cron chạy ngầm mỗi **10 giây** sẽ **tự đảo qua lại giữa các nick đã lưu để săn 5 link TestFlight** và mỗi **15 phút** tự **`GET` danh sách App TestFlight của từng nick** mà **không cần đăng nhập lại hay nhập OTP/2FA**.
+---
 
-### Bước 4: Quản Lý & Theo Dõi Gia Hạn Gói Kiểm Thử TestFlight
-1. Mở Safari vào **`http://tf-sub.test/`** *(có thể bấm nút Chia sẻ ➔ **Thêm vào Màn hình chính** để dùng như 1 app riêng)*.
-2. Bấm **`🔄 Quét (GET) App TestFlight Tất Cả Nick`** để kiểm tra sức khỏe Token (`TOKEN SỐNG` / `HẾT HẠN 401`) và danh sách app của từng nick.
-3. Khi mở các app TestFlight có gói mua kiểm thử Sandbox, script tự động ghi nhận **chỉ đọc (`Read-Only`)** vào danh sách gói ➔ bạn bấm **`➕ Chọn gia hạn`** để hệ thống theo dõi hạn và báo đẩy 1 chạm mở thẳng `itms-apps://apps.apple.com/account/subscriptions` khi hết chu kỳ Sandbox.
+## 4. GIẢI NGHĨA NHANH BẢNG LOG & XỬ LÝ SỰ CỐ THƯỜNG GẶP
 
+| Mã HTTP / Trạng thái trong Tab `📊 Log` | Ý nghĩa thực tế | Cách xử lý |
+| :--- | :--- | :--- |
+| **`200` (`OK`)** | API thành công *(Token sống, tham gia thành công hoặc gửi `/install` thành công)* | Hoạt động bình thường. |
+| **`401` (`ERR`)** | Phiên `X-Session-Digest` của nick đó đã bị Apple thu hồi *(hết hạn)* | Mở app TestFlight bằng đúng nick báo `401` kéo làm mới 1 lần để Hub tự nạp đè token mới *(Hub không tự xóa nick)*. |
+| **`429` (`WARN`)** | Gửi request quá nhanh, Apple tạm giới hạn tần suất | Tăng `Ping (phút)` lên `30–60` phút và chờ vài phút trước khi quét lại. |
+| **Không mở được `http://tf-hub.test/`** | VPN chưa bật hoặc Loon thiếu `force-http-engine-hosts` | Kiểm tra VPN đã bật, gõ đúng `http://` *(không phải `https://`)* và đảm bảo không bật trùng plugin cũ. |
