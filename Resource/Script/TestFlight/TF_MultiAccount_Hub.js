@@ -1,6 +1,6 @@
 /**
  * TF_MultiAccount_Hub.js — Trung Tâm All-in-One 4 Tab (NobyDa + iRingo + API Replay Engine + StoreKit 1/2 RO + Telemetry Log)
- * Phiên bản: 2.1.0.0 — Tối ưu mạnh cho Loon (.plugin + [Argument]) & Shadowrocket (.sgmodule) trên A9 iOS 15.8.8 (SSL Kill Switch 3)
+ * Phiên bản: 2.2.0.0 — Tối ưu mạnh cho Loon 3.5.3 (.plugin + [Argument]) & Shadowrocket (.sgmodule) trên A9 iOS 15.8.8 (SSL Kill Switch 3)
  * Giao diện Web 4 Tab: http://tf-hub.test/ | Đồng bộ BoxJs: TF_HUB_*
  * - Tab 1: Quản lý Link TestFlight (Thêm lẻ/hàng loạt, Sửa, Xóa, Tự kiểm tra trạng thái OPEN/FULL/CLOSED, Bắn toàn bộ nick tham gia)
  * - Tab 2: Kho Apple ID & API Replay Core (Bắt tối đa tham số phiên: UUID, X-Session-*, X-Dsid, X-Apple-I-MD*, DeviceId, Storefront, UA; chống mất phiên/2FA lại; Quét cập nhật & tự gửi POST /install phá vùng; MERGE/PIN; Lách iOS cũ modBuild)
@@ -9,7 +9,7 @@
  */
 'use strict';
 
-const HUB_VERSION = '2.1.0.0';
+const HUB_VERSION = '2.2.0.0';
 const HUB_HOST = 'tf-hub.test';
 const TF_ORIGIN = 'https://testflight.apple.com';
 
@@ -159,10 +159,12 @@ function httpCall(method, opts) {
     if (typeof $httpClient === 'undefined') {
       return resolve({ error: 'No $httpClient', status: 0, headers: {}, body: '', durationMs: 0 });
     }
+    const sec = opts.timeout || 15;
     const reqOpts = {
       url: opts.url,
       headers: Object.assign({}, opts.headers || {}),
-      timeout: opts.timeout || 15,
+      // Loon dùng mili-giây (15000ms), Shadowrocket/Surge dùng giây (15s)
+      timeout: isLoon ? (sec * 1000) : sec,
     };
     if (opts.body !== undefined) reqOpts.body = opts.body;
     reqOpts['X-Surge-Skip-Scripting'] = true;
