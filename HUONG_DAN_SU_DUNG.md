@@ -1,6 +1,29 @@
-# 📘 HƯỚNG DẪN SỬ DỤNG TRỌN BỘ TESTFLIGHT CHO LOON & SHADOWROCKET (`version.5.3.0.0`)
+# 📘 HƯỚNG DẪN SỬ DỤNG TRỌN BỘ TESTFLIGHT CHO LOON & SHADOWROCKET (`version.5.4.0.0`)
 
-> **Tối ưu riêng cho:** iPhone chip A9 (`iPhone 6s / 6s Plus / SE 1`) chạy **iOS 15.8.8 Rootless (`/var/jb`)**, giữ bộ nhớ `NetworkExtension` dưới `15MB RAM`.
+> **Tối ưu riêng cho:** iPhone chip A9 (`iPhone 6s / 6s Plus / SE 1`) chạy **iOS 15.8.8 Rootless (`/var/jb`) + SSL Kill Switch 3**, giữ bộ nhớ `NetworkExtension` nhẹ gọn.
+
+---
+
+## ⭐ 0. TRUNG TÂM ALL-IN-ONE 3 TAB (`TF_MultiAccount_Hub v2.0.0.0` — KHUYÊN DÙNG CHÍNH)
+
+Hợp nhất **`NobyDa` + `iRingo` + `CRUD Link TestFlight` + `Batch Actions` + `StoreKit 1/2 Sandbox`** vào **đúng 1 Plugin Loon / 1 Module Shadowrocket duy nhất** *(lưu ý: tắt các plugin TestFlight/NobyDa/iRingo riêng lẻ trước khi bật để tránh xung đột MITM)*:
+
+- **Loon (`.plugin`):**
+  ```text
+  https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Loon/Plugin/TF_MultiAccount_Hub.plugin
+  ```
+- **Shadowrocket (`.sgmodule`):**
+  ```text
+  https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/TF_MultiAccount_Hub.sgmodule
+  ```
+- **BoxJs Subscription (`boxjs.json`):**
+  ```text
+  https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/boxjs.json
+  ```
+- **Giao diện Web điều khiển 3 Tab trên Safari:** `http://tf-hub.test/`
+  1. **Tab 1 (`Link TF`):** Thêm / Sửa tên / Xóa từng link, kiểm tra trạng thái (`OPEN`/`FULL`/`CLOSED`), bấm cho toàn bộ nick `ALIVE` cùng tham gia.
+  2. **Tab 2 (`Nick & API`):** Hiển thị rõ `accountId` (UUID) + 3 Token (`x-session-id`, `x-request-id`, `x-session-digest`), chuyển `MERGE`/`PIN`, ping nuôi token chống die `401`, quét app & gửi `/install`, lách iOS cũ (`modBuild` + `AlwaysShowInstall`) & phá vùng `Storefront`.
+  3. **Tab 3 (`Gói Sandbox`):** Theo dõi **chỉ đọc** gói đăng ký kiểm thử StoreKit 1 & 2 theo từng Apple ID, tích Watchlist & nhắc gia hạn 1 chạm.
 
 ---
 
@@ -114,3 +137,4 @@ https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowr
 1. Mở Safari vào **`http://tf-sub.test/`** *(có thể bấm nút Chia sẻ ➔ **Thêm vào Màn hình chính** để dùng như 1 app riêng)*.
 2. Bấm **`🔄 Quét (GET) App TestFlight Tất Cả Nick`** để kiểm tra sức khỏe Token (`TOKEN SỐNG` / `HẾT HẠN 401`) và danh sách app của từng nick.
 3. Khi mở các app TestFlight có gói mua kiểm thử Sandbox, script tự động ghi nhận **chỉ đọc (`Read-Only`)** vào danh sách gói ➔ bạn bấm **`➕ Chọn gia hạn`** để hệ thống theo dõi hạn và báo đẩy 1 chạm mở thẳng `itms-apps://apps.apple.com/account/subscriptions` khi hết chu kỳ Sandbox.
+

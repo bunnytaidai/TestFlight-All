@@ -1,10 +1,10 @@
-#!name = ✈️ TF Multi-Account Hub (NobyDa + iRingo + Sniper + GUI)
-#!desc = Hợp nhất lưu & tráo nhiều Apple ID (MERGE kiểu NobyDa / PIN kiểu iRingo), nuôi token chống die 401, tự động săn & tham gia link TestFlight, lách iOS 15.8.8 (modBuild + AlwaysShowInstall) & phá giới hạn vùng. Giao diện Web nội bộ: http://tf-hub.test/ (đồng bộ BoxJs). Lưu ý: Tắt các plugin TestFlight/NobyDa/iRingo riêng lẻ trước khi bật plugin này để tránh xung đột MITM.
+#!name = ✈️ TF Multi-Account Hub v2 (All-in-One 3 Tab: Link + Đa Nick + Sandbox IAP)
+#!desc = Trung tâm All-in-One 3 Tab cho Loon (tối ưu A9 iOS 15.8.8): (1) Quản lý CRUD & kiểm tra trạng thái Link TestFlight + bắn hàng loạt nick tham gia; (2) Lưu & tráo nhiều Apple ID (MERGE/PIN), nuôi token Keep-Alive, quét cập nhật, gửi /install, lách iOS cũ & phá vùng; (3) Theo dõi chỉ đọc gói đăng ký Sandbox IAP (StoreKit 1 & 2) theo từng nick + nhắc gia hạn. Web UI: http://tf-hub.test/ (đồng bộ BoxJs).
 #!openUrl = http://tf-hub.test/
-#!author = Hely-T & Antigravity (v1.0.0.0)
+#!author = Hely-T & Antigravity (v2.0.0.0)
 #!homepage = https://github.com/bunnytaidai/TestFlight-All
 #!icon = https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png
-#!date = 2026-11-19 13:42:00
+#!date = 2026-11-19 14:12:00
 
 [General]
 skip-proxy = iosapps.itunes.apple.com
@@ -18,18 +18,20 @@ DOMAIN-KEYWORD, testflight.apple.com, DIRECT
 tf-hub.test = 127.0.0.1
 
 [Script]
-# 1. Giao diện Web điều khiển nội bộ (http://tf-hub.test/) — xem/sửa UUID, Token, công tắc, bấm Ping/Snipe
-http-request ^http:\/\/tf-hub\.test(\/.*)?$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js, requires-body = true, timeout = 25, tag = TF Hub Web UI (tf-hub.test)
+# 1. Giao diện Web 3 Tab nội bộ (http://tf-hub.test/)
+http-request ^http:\/\/tf-hub\.test(\/.*)?$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js, requires-body = true, timeout = 25, tag = TF Hub Web UI 3 Tab (tf-hub.test)
 
-# 2. Chặn Request TestFlight — Chụp đa nick, tráo MERGE/PIN & phá giới hạn vùng Storefront
+# 2. MITM Request TestFlight — Chụp đa nick, tráo MERGE/PIN & phá giới hạn vùng Storefront
 http-request ^https?:\/\/testflight\.apple\.com\/ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js, requires-body = true, max-size = 524288, timeout = 20, tag = TF Hub Request (Đa Nick & Phá Vùng)
 
-# 3. Chặn Response TestFlight — Lách iOS cũ (modBuild) & ép hiện nút Cài đặt (AlwaysShowInstall)
+# 3. MITM Response TestFlight — Lách iOS cũ (modBuild) & ép hiện nút Cài đặt (AlwaysShowInstall)
 http-response ^https?:\/\/testflight\.apple\.com\/ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js, requires-body = true, max-size = 524288, timeout = 20, tag = TF Hub Response (Lách iOS Cũ)
 
-# 4. Cron ngầm mỗi 5 phút — Ping nuôi token định kỳ (theo chu kỳ KEEP_ALIVE) + Săn & Accept link TestFlight
-cron "0 */5 * * * *" script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js, timeout = 25, tag = TF Hub Cron (Nuôi Token & Auto Join)
+# 4. MITM Response StoreKit 1 & 2 Sandbox — Chỉ đọc ($done({})) ghi nhận gói đăng ký kiểm thử theo từng nick
+http-response ^https?:\/\/(sandbox\.itunes|mzstorekit-sb\.itunes|api\.storekit-sandbox\.itunes)\.apple\.com\/ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js, requires-body = true, max-size = 524288, timeout = 20, tag = TF Hub StoreKit Sandbox (Chỉ Đọc)
+
+# 5. Cron ngầm mỗi 5 phút — Nuôi token Keep-Alive + Săn & Accept link + Nhắc gia hạn Watchlist
+cron "0 */5 * * * *" script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js, timeout = 25, tag = TF Hub Cron (Nuôi Token, Sniper & Nhắc Gia Hạn)
 
 [MITM]
-hostname = testflight.apple.com
-
+hostname = testflight.apple.com, sandbox.itunes.apple.com, mzstorekit-sb.itunes.apple.com, api.storekit-sandbox.itunes.apple.com

@@ -215,10 +215,13 @@
     },
     {
       "id": "TF_MultiAccount_Hub",
-      "name": "✈️ TF Multi-Account Hub (NobyDa + iRingo + Sniper + GUI)",
+      "name": "✈️ TF Multi-Account Hub v2 (All-in-One 3 Tab: Link + Đa Nick + Sandbox IAP)",
       "keys": [
         "TF_HUB_ACCOUNTS",
         "TF_HUB_APPLIST",
+        "TF_HUB_LINKS",
+        "TF_HUB_SUBS",
+        "TF_HUB_WATCHLIST",
         "TF_HUB_MODE",
         "TF_HUB_ACTIVE_ID",
         "TF_HUB_COUNTRY",
