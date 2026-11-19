@@ -1,0 +1,9 @@
+Package: com.antidv.tfhubinspector
+Name: TFHubInspector
+Version: 1.0.0
+Architecture: iphoneos-arm64
+Description: Rootless iOS 15 QA Inspector & Local Web Dashboard (NSURLSession telemetry, StoreKit Sandbox receipt viewer, local HTTP replay) for TestFlight, Loon, Shadowrocket & target beta apps.
+Maintainer: Antidv
+Author: Antidv & Hely-T
+Section: Tweaks
+Depends: mobilesubstrate | ellekit

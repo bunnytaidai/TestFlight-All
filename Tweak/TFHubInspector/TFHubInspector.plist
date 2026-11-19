@@ -1,0 +1,11 @@
+{
+    Filter = {
+        Bundles = (
+            "com.apple.TestFlight",
+            "com.ruikq.decar",
+            "com.loon.LoonLite",
+            "com.liguangming.Shadowrocket",
+            "com.viraltech.vilanet",
+        );
+    };
+}

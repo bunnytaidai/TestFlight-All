@@ -1,0 +1,42 @@
+name: Build Rootless TFHubInspector (.dylib & .deb)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Tweak/TFHubInspector/**'
+      - '.github/workflows/build-dylib.yml'
+
+jobs:
+  build-rootless:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Theos & Rootless toolchain
+        run: |
+          export THEOS=$HOME/theos
+          git clone --recursive https://github.com/theos/theos.git "$THEOS"
+          curl -sL https://github.com/theos/sdks/archive/master.tar.gz | tar -xz -C /tmp
+          mkdir -p "$THEOS/sdks"
+          cp -R /tmp/sdks-master/iPhoneOS15.5.sdk "$THEOS/sdks/" || cp -R /tmp/sdks-master/iPhoneOS16.*.sdk "$THEOS/sdks/"
+          brew install ldid dpkg || true
+
+      - name: Build TFHubInspector Rootless (.dylib + .deb)
+        working-directory: Tweak/TFHubInspector
+        run: |
+          export THEOS=$HOME/theos
+          make clean
+          make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
+          mkdir -p dist
+          cp .theos/obj/arm64/TFHubInspector.dylib dist/TFHubInspector.dylib
+          cp TFHubInspector.plist dist/TFHubInspector.plist
+          cp packages/*.deb dist/
+          ls -la dist/
+
+      - name: Upload .dylib & .deb Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: TFHubInspector-rootless-arm64
+          path: Tweak/TFHubInspector/dist/*
