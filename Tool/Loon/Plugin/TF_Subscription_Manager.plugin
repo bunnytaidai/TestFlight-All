@@ -30,3 +30,4 @@ cron "0 */15 * * * *" script-path = https://raw.githubusercontent.com/bunnytaida
 
 [Mitm]
 hostname = sandbox.itunes.apple.com, mzstorekit-sb.itunes.apple.com, api.storekit-sandbox.itunes.apple.com
+
