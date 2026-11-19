@@ -1,6 +1,6 @@
 /**
  * TF_MultiAccount_Hub.js — Trung Tâm All-in-One 4 Tab (NobyDa + iRingo + API Replay Engine + StoreKit 1/2 RO + Telemetry Log)
- * Phiên bản: 2.2.0.0 — Tối ưu mạnh cho Loon 3.5.3 (.plugin + [Argument]) & Shadowrocket (.sgmodule) trên A9 iOS 15.8.8 (SSL Kill Switch 3)
+ * Phiên bản: 2.2.1.0 — Tối ưu mạnh cho Loon 3.5.3 (.plugin + [Argument]) & Shadowrocket (.sgmodule) trên A9 iOS 15.8.8 (SSL Kill Switch 3)
  * Giao diện Web 4 Tab: http://tf-hub.test/ | Đồng bộ BoxJs: TF_HUB_*
  * - Tab 1: Quản lý Link TestFlight (Thêm lẻ/hàng loạt, Sửa, Xóa, Tự kiểm tra trạng thái OPEN/FULL/CLOSED, Bắn toàn bộ nick tham gia)
  * - Tab 2: Kho Apple ID & API Replay Core (Bắt tối đa tham số phiên: UUID, X-Session-*, X-Dsid, X-Apple-I-MD*, DeviceId, Storefront, UA; chống mất phiên/2FA lại; Quét cập nhật & tự gửi POST /install phá vùng; MERGE/PIN; Lách iOS cũ modBuild)
@@ -9,7 +9,7 @@
  */
 'use strict';
 
-const HUB_VERSION = '2.2.0.0';
+const HUB_VERSION = '2.2.1.0';
 const HUB_HOST = 'tf-hub.test';
 const TF_ORIGIN = 'https://testflight.apple.com';
 
@@ -53,9 +53,16 @@ const isResp = typeof $response !== 'undefined';
 // ============================================================================
 function parseScriptArgs() {
   const out = {};
+  const isPlaceholder = (v) => {
+    const s = String(v ?? '').trim();
+    return !s || s.startsWith('{') || s.startsWith('[');
+  };
   try {
     if (typeof $argument === 'object' && $argument !== null) {
-      return Object.assign({}, $argument);
+      for (const k of Object.keys($argument)) {
+        if (!isPlaceholder($argument[k])) out[k] = $argument[k];
+      }
+      return out;
     }
     if (typeof $argument === 'string' && $argument.trim()) {
       for (const part of $argument.split('&')) {
@@ -63,7 +70,7 @@ function parseScriptArgs() {
         if (idx > 0) {
           const k = decodeURIComponent(part.slice(0, idx).trim());
           const v = decodeURIComponent(part.slice(idx + 1).trim());
-          if (k && v && !v.startsWith('{{{') && !v.startsWith('[')) out[k] = v;
+          if (k && !isPlaceholder(v)) out[k] = v;
         }
       }
     }

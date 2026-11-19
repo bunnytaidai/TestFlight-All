@@ -1,4 +1,4 @@
-# 📘 HƯỚNG DẪN CÀI ĐẶT & SỬ DỤNG CHI TIẾT — TESTFLIGHT ALL-IN-ONE (`version.5.5.0.0`)
+# 📘 HƯỚNG DẪN CÀI ĐẶT & SỬ DỤNG CHI TIẾT — TESTFLIGHT ALL-IN-ONE (`version.5.5.2.0`)
 
 > **Tối ưu chuyên sâu cho:** iPhone chip A9 (`iPhone 6s / 6s Plus / SE 1`) chạy **iOS 15.8.8 Rootless (`/var/jb`) + Tweak `SSL Kill Switch 3`** trên **Loon** *(ưu tiên mạnh nhất)* và **Shadowrocket**.
 

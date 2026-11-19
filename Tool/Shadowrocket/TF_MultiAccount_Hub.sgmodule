@@ -1,10 +1,10 @@
-#!name=✈️ TF Multi-Account Hub v2.2.0.0 (All-in-One 4 Tab + API Replay + Log)
+#!name=✈️ TF Multi-Account Hub v2.2.1.0 (All-in-One 4 Tab + API Replay + Log)
 #!desc=Trung tâm All-in-One 4 Tab cho Shadowrocket (A9 iOS 15.8.8 + SSL Kill Switch 3): (1) Quản lý CRUD/bulk link TestFlight + tự kiểm tra trạng thái & bắn hàng loạt nick tham gia; (2) Bắt tối đa tham số phiên Apple ID (UUID, X-Session-*, X-Dsid, X-Apple-I-MD*, DeviceId) hạn chế 2FA lại, API Replay tự quét build mới & gửi /install, lách iOS cũ & phá vùng; (3) Theo dõi chỉ đọc StoreKit 1/2 Sandbox; (4) Bảng Log trạng thái từng hành động. Web UI: http://tf-hub.test/
 #!openUrl=http://tf-hub.test/
-#!author=Hely-T & Antigravity (v2.2.0.0)
+#!author=Hely-T & Antigravity (v2.2.1.0)
 #!homepage=https://github.com/bunnytaidai/TestFlight-All
 #!icon=https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png
-#!version=2.2.0.0
+#!version=2.2.1.0
 
 [General]
 skip-proxy = %APPEND% iosapps.itunes.apple.com

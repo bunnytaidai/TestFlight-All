@@ -1,8 +1,8 @@
 {
   "id": "hely-t.app.sub",
-  "name": "Đăng ký Hely-T TestFlight Suite (Loon & Shadowrocket v5.5.1.0)",
+  "name": "Đăng ký Hely-T TestFlight Suite (Loon & Shadowrocket v5.5.2.0)",
   "author": "@Hely-T",
-  "description": "Bộ công cụ TestFlight toàn diện v5.5.1.0 (A9 iOS 15.8.8): Trung tâm All-in-One 4 Tab TF_MultiAccount_Hub v2.2.0.0 (http://tf-hub.test/) với API Replay Core, Anti-2FA Fingerprint, Bảng Log trạng thái & Quản lý gói Sandbox StoreKit 1/2.",
+  "description": "Bộ công cụ TestFlight toàn diện v5.5.2.0 (A9 iOS 15.8.8): Trung tâm All-in-One 4 Tab TF_MultiAccount_Hub v2.2.1.0 (http://tf-hub.test/) với API Replay Core, Anti-2FA Fingerprint, Bảng Log trạng thái & Quản lý gói Sandbox StoreKit 1/2.",
   "icon": "https://avatars.githubusercontent.com/u/170521226?s=400&u=9e2c15d038fb2e92bbbf4f1ba3ff9b0e447efeb6&v=4",
   "repo": "https://github.com/bunnytaidai/TestFlight-All",
   "apps": [
