@@ -1,15 +1,15 @@
 /**
  * TF_MultiAccount_Hub.js — Trung Tâm All-in-One 4 Tab (NobyDa + iRingo + API Replay Engine + StoreKit 1/2 RO + Telemetry Log)
- * Phiên bản: 2.2.1.0 — Tối ưu mạnh cho Loon 3.5.3 (.plugin + [Argument]) & Shadowrocket (.sgmodule) trên A9 iOS 15.8.8 (SSL Kill Switch 3)
+ * Phiên bản: 2.3.0.0 — Tối ưu mạnh cho Loon 3.5.3 (.plugin + [Argument]) & Shadowrocket (.sgmodule) trên A9 iOS 15.8.8 (SSL Kill Switch 3)
  * Giao diện Web 4 Tab: http://tf-hub.test/ | Đồng bộ BoxJs: TF_HUB_*
- * - Tab 1: Quản lý Link TestFlight (Thêm lẻ/hàng loạt, Sửa, Xóa, Tự kiểm tra trạng thái OPEN/FULL/CLOSED, Bắn toàn bộ nick tham gia)
- * - Tab 2: Kho Apple ID & API Replay Core (Bắt tối đa tham số phiên: UUID, X-Session-*, X-Dsid, X-Apple-I-MD*, DeviceId, Storefront, UA; chống mất phiên/2FA lại; Quét cập nhật & tự gửi POST /install phá vùng; MERGE/PIN; Lách iOS cũ modBuild)
- * - Tab 3: Gói Đăng Ký Kiểm Thử Sandbox IAP (StoreKit 1 verifyReceipt & StoreKit 2 JWS — Chỉ đọc $done({})) theo từng nick + Watchlist nhắc gia hạn
+ * - Tab 1: Quản lý Link TestFlight (Thêm lẻ/hàng loạt, Sửa, Xóa, Tự kiểm tra trạng thái OPEN/FULL/CLOSED, Xoay vòng nick tham gia)
+ * - Tab 2: Kho Apple ID & API Replay Core (Bắt tối đa tham số phiên Anti-2FA; Xoay vòng Round-Robin tham gia/tải/cập nhật; Quét cập nhật & tự gửi POST /install phá vùng; MERGE/PIN; Lách iOS cũ modBuild)
+ * - Tab 3: Quản Lý Gói Đăng Ký Kiểm Thử Sandbox TestFlight (StoreKit 1 verifyReceipt + StoreKit 2 JWS — Chỉ đọc + Replay verifyReceipt kiểm tra hạn theo từng nick + Nút mở đúng Sandbox Subscriptions trên iOS 15.8.8 + Watchlist nhắc gia hạn)
  * - Tab 4: Bảng Log Kiểm Tra Trạng Thái Hoạt Động & Từng Hành Động (lọc OK/WARN/ERR, mã HTTP, độ trễ ms)
  */
 'use strict';
 
-const HUB_VERSION = '2.2.1.0';
+const HUB_VERSION = '2.3.0.0';
 const HUB_HOST = 'tf-hub.test';
 const TF_ORIGIN = 'https://testflight.apple.com';
 
@@ -19,7 +19,9 @@ const KEYS = {
   APP_BUILDS: 'TF_HUB_APP_BUILDS',         // { [uuid::adamId]: buildId } — phát hiện build mới để tự gửi /install
   LINKS: 'TF_HUB_LINKS',                   // { [code]: { code, name, note, status, lastCheck, joinedBy: [] } }
   SUBS: 'TF_HUB_SUBS',                     // { [ownerKey]: { [productId]: {...} } }
+  RECEIPTS: 'TF_HUB_RECEIPTS',             // { [ownerKey]: { receiptData, password, ownerLabel, updatedAt } } — replay verifyReceipt kiểm tra hạn Sandbox
   WATCHLIST: 'TF_HUB_WATCHLIST',           // Array of "ownerKey::productId"
+  RR_IDX: 'TF_HUB_RR_IDX',                 // Con trỏ xoay vòng Round-Robin các nick Apple ID
   MODE: 'TF_HUB_MODE',                     // 'MERGE' | 'PIN'
   ACTIVE_ID: 'TF_HUB_ACTIVE_ID',           // UUID đang ghim
   COUNTRY: 'TF_HUB_COUNTRY',               // 'US' | 'VN' | 'JP' | ... | 'AUTO'
@@ -616,6 +618,12 @@ async function batchJoinLinks({ codes = null, accountIds = null, skipPublicCheck
     : Object.values(accounts).filter((a) => a.status === 'ALIVE');
   if (!accountIds && cfg.mode === 'PIN' && cfg.activeId && accounts[cfg.activeId]) {
     targetAccs = [accounts[cfg.activeId]];
+  } else if (targetAccs.length > 1) {
+    // Xoay vòng Round-Robin để chia đều tải qua tất cả nick ALIVE (tránh 429 & giữ đều phiên)
+    const rr = Number(storeRead(KEYS.RR_IDX, '0')) || 0;
+    const offset = rr % targetAccs.length;
+    targetAccs = targetAccs.slice(offset).concat(targetAccs.slice(0, offset));
+    storeWrite(KEYS.RR_IDX, String((offset + 1) % targetAccs.length));
   }
 
   const results = [];
@@ -747,6 +755,55 @@ function parseSandboxSubscriptionsReadOnly(bodyStr, reqHeaders) {
   return count;
 }
 
+function captureSandboxReceiptRequest(bodyStr, reqHeaders) {
+  if (!bodyStr || bodyStr[0] !== '{') return false;
+  try {
+    const j = JSON.parse(bodyStr);
+    if (!j['receipt-data']) return false;
+    const owner = resolveSandboxOwner(reqHeaders, '');
+    const map = readJson(KEYS.RECEIPTS, {});
+    map[owner.ownerKey] = {
+      ownerKey: owner.ownerKey,
+      ownerLabel: owner.ownerLabel,
+      receiptData: String(j['receipt-data']),
+      password: j.password ? String(j.password) : '',
+      updatedAt: Date.now(),
+    };
+    // Giới hạn tối đa 10 biên lai trong bộ nhớ để giữ RAM nhẹ cho A9
+    const keys = Object.keys(map);
+    if (keys.length > 10) delete map[keys[0]];
+    storeWrite(KEYS.RECEIPTS, map);
+    recordAction('OK', 'RECEIPT_CAP', owner.ownerLabel, 'Đã lưu mẫu biên lai Sandbox để replay kiểm tra hạn', 200, 0);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+async function replayVerifyReceipts() {
+  const map = readJson(KEYS.RECEIPTS, {});
+  const items = Object.values(map);
+  const results = [];
+  for (const it of items) {
+    if (!it || !it.receiptData) continue;
+    const payload = { 'receipt-data': it.receiptData, 'exclude-old-transactions': true };
+    if (it.password) payload.password = it.password;
+    const r = await httpCall('POST', {
+      url: 'https://sandbox.itunes.apple.com/verifyReceipt',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      timeout: 12,
+    });
+    let parsedCount = 0;
+    if (r.status === 200 && r.body) {
+      parsedCount = parseSandboxSubscriptionsReadOnly(r.body, { 'x-dsid': it.ownerKey.startsWith('dsid:') ? it.ownerKey.slice(5) : '' });
+    }
+    recordAction(r.status === 200 ? 'OK' : 'WARN', 'SANDBOX_SYNC', it.ownerLabel, `Replay verifyReceipt ➔ ${parsedCount} gói`, r.status, r.durationMs);
+    results.push({ owner: it.ownerLabel, status: r.status, parsedCount });
+  }
+  return results;
+}
+
 function checkWatchlistRenewals() {
   const subs = readJson(KEYS.SUBS, {});
   const watch = readJson(KEYS.WATCHLIST, []);
@@ -761,9 +818,9 @@ function checkWatchlistRenewals() {
     const remainMin = Math.round((rec.expiresMs - now) / 60000);
     if (rec.autoRenewStatus === '0' || remainMin <= 5) {
       const msg = remainMin <= 0
-        ? `Đã hết hạn (${rec.ownerLabel}) — autoRenew=${rec.autoRenewStatus}. Bấm mở trang quản lý để gia hạn.`
-        : `Còn ~${remainMin} phút (${rec.ownerLabel}) — autoRenew=${rec.autoRenewStatus}.`;
-      notify('TF Hub — Nhắc Gia Hạn Sandbox 💳', rec.productId, msg, 'itms-apps://apps.apple.com/account/subscriptions');
+        ? `Gói Sandbox đã hết hạn (${rec.ownerLabel}) — autoRenew=${rec.autoRenewStatus}. Mở Cài đặt App Store ➔ Tài khoản Sandbox để quản lý/gia hạn.`
+        : `Gói Sandbox còn ~${remainMin} phút (${rec.ownerLabel}) — autoRenew=${rec.autoRenewStatus}.`;
+      notify('TF Hub — Nhắc Gia Hạn Sandbox TestFlight 🧪', rec.productId, msg, 'App-Prefs:root=STORE');
       recordAction('WARN', 'RENEW_ALERT', rec.productId, msg, 0, 0);
       alerted.push({ ownerKey, productId, remainMin, autoRenewStatus: rec.autoRenewStatus });
     }
@@ -781,6 +838,11 @@ async function handleTestFlightRequest() {
 
   const cfg = getConfig();
   const url = req.url;
+  // Bắt chỉ đọc yêu cầu verifyReceipt Sandbox để có thể replay kiểm tra hạn gói bất cứ lúc nào
+  if (/sandbox\.itunes\.apple\.com\/verifyReceipt/i.test(url)) {
+    captureSandboxReceiptRequest(req.body, req.headers);
+    return $done({});
+  }
   const uuidMatch = url.match(/\/accounts\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\//i);
   const reqUuid = uuidMatch ? uuidMatch[1].toLowerCase() : '';
 
@@ -1106,10 +1168,12 @@ function renderHtmlDashboard() {
   <!-- TAB 3: SANDBOX SUBSCRIPTIONS -->
   <div class="panel" id="p2">
     <div class="card">
-      <h2>💳 Gói Đăng Ký Kiểm Thử (StoreKit 1 & 2 — Chỉ Đọc)</h2>
+      <h2>💳 Quản Lý Gói Đăng Ký Kiểm Thử Sandbox TestFlight</h2>
+      <div class="sub">Theo dõi riêng gói mua kiểm thử Sandbox (StoreKit 1 & 2) theo từng nick — KHÔNG trỏ nhầm vào gói Apple ID Production.</div>
       <div class="row">
-        <button onclick="runAct('checkWatchlist')">🔔 Kiểm Tra Hạn Watchlist</button>
-        <a href="itms-apps://apps.apple.com/account/subscriptions" style="text-decoration:none"><button class="sec" type="button">⚙️ Trang Thuê Bao iOS</button></a>
+        <button class="ok" onclick="runAct('syncSubsAndRenew')">🔄 Quét & Kiểm Tra Gia Hạn Sandbox</button>
+        <a href="App-Prefs:root=STORE" style="text-decoration:none"><button class="warn" type="button">🧪 Tài Khoản Sandbox (Cài Đặt iOS)</button></a>
+        <a href="https://sandbox.itunes.apple.com/WebObjects/MZFinance.woa/wa/manageSubscriptions" style="text-decoration:none"><button class="sec" type="button">🌐 Cổng Quản Lý Sandbox Apple</button></a>
       </div>
       <div id="subsList">Đang tải...</div>
     </div>
@@ -1412,6 +1476,11 @@ async function handleWebUiRequest() {
       return jsonResp({ ok: true, result: await sendInstallApi(acc, body.appId, body.buildId, getConfig().country) });
     }
     if (body.action === 'checkWatchlist') return jsonResp({ ok: true, result: checkWatchlistRenewals() });
+    if (body.action === 'syncSubsAndRenew') {
+      const synced = await replayVerifyReceipts();
+      const alerts = checkWatchlistRenewals();
+      return jsonResp({ ok: true, result: { synced, alerts } });
+    }
     return jsonResp({ ok: false, error: 'Unknown action' }, 400);
   }
 
@@ -1434,6 +1503,7 @@ async function main() {
   if (cfg.autoJoin && Object.keys(getLinksMap()).length > 0) {
     await batchJoinLinks({ skipPublicCheck: false, stopOnFirst: false });
   }
+  await replayVerifyReceipts();
   checkWatchlistRenewals();
   $done();
 }

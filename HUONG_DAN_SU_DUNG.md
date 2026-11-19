@@ -1,4 +1,4 @@
-# 📘 HƯỚNG DẪN CÀI ĐẶT & SỬ DỤNG CHI TIẾT — TESTFLIGHT ALL-IN-ONE (`version.5.5.2.0`)
+# 📘 HƯỚNG DẪN CÀI ĐẶT & SỬ DỤNG CHI TIẾT — TESTFLIGHT ALL-IN-ONE (`version.5.6.0.0`)
 
 > **Tối ưu chuyên sâu cho:** iPhone chip A9 (`iPhone 6s / 6s Plus / SE 1`) chạy **iOS 15.8.8 Rootless (`/var/jb`) + Tweak `SSL Kill Switch 3`** trên **Loon** *(ưu tiên mạnh nhất)* và **Shadowrocket**.
 
@@ -72,7 +72,7 @@ Mở **Safari** trên iPhone (khi đang bật Loon/Shadowrocket) và truy cập:
 | :--- | :--- | :--- |
 | **Tab 1: `🔗 Link TF`** | Quản lý Thêm / Sửa / Xóa & tự động kiểm tra trạng thái Link TestFlight | Dán 1 hoặc nhiều link/mã vào ô nhập ➔ bấm **💾 Thêm & Lưu Link** ➔ bấm **🔍 Quét Trạng Thái Tất Cả** (`OPEN`/`FULL`/`CLOSED`) ➔ bấm **🎯 Tự Tham Gia Toàn Bộ Link OPEN** *(hoặc bấm nút bắn từng link)*. |
 | **Tab 2: `👥 Nick & API`** | Quản lý Kho Apple ID, xem đủ tham số Token/Fingerprint (`FP x/7`) & điều khiển API Replay | Xem toàn bộ `accountId` + 3 Token + `DSID`/`Device`/`MD`; bấm **💓 Ping Nuôi & Quét Cập Nhật Toàn Bộ**; bấm **⬇️ Replay `/install`** cho từng app; chuyển `MERGE`/`PIN`; bật/tắt **Lách iOS cũ**, **Ép nút Cài**, **Auto-Join**, **Auto Cập nhật**. |
-| **Tab 3: `💳 Sandbox`** | Kiểm tra trạng thái gói đăng ký kiểm thử StoreKit 1 & 2 theo từng Apple ID *(Chỉ đọc)* | Mở app TestFlight có gói Sandbox để Hub tự ghi nhận `productId`, `expiresDate`, `autoRenewStatus`; bấm **☆ Bật nhắc gia hạn** *(Watchlist)* để Cron tự cảnh báo + mở trang thuê bao iOS khi sắp hết chu kỳ Sandbox. |
+| **Tab 3: `💳 Sandbox`** | Kiểm tra & quản lý riêng gói đăng ký kiểm thử **Sandbox TestFlight** (StoreKit 1 & 2) theo từng Apple ID | Bấm **🔄 Quét & Kiểm Tra Gia Hạn Sandbox** *(tự replay `verifyReceipt`)*; bấm **🧪 Tài Khoản Sandbox (Cài Đặt iOS)** (`App-Prefs:root=STORE` ➔ App Store ➔ Tài khoản Sandbox) hoặc **🌐 Cổng Quản Lý Sandbox Apple**; tích **☆ Bật nhắc gia hạn** *(Watchlist)*. |
 | **Tab 4: `📊 Log`** | Bảng kiểm tra trạng thái hoạt động & kết quả từng hành động của Tool | Lọc theo **`OK` / `WARN` / `ERR`**; xem rõ giờ chạy, tên hành động (`PING_SYNC`, `CHECK_LINK`, `ACCEPT_API`, `INSTALL_API`, `MERGE_LIST`, `SANDBOX_RO`), mã HTTP và độ trễ (`ms`). |
 
 ---

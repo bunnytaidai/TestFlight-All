@@ -1,8 +1,8 @@
 {
   "id": "hely-t.app.sub",
-  "name": "Đăng ký Hely-T TestFlight Suite (Loon & Shadowrocket v5.5.2.0)",
+  "name": "Đăng ký Hely-T TestFlight Suite (Loon & Shadowrocket v5.6.0.0)",
   "author": "@Hely-T",
-  "description": "Bộ công cụ TestFlight toàn diện v5.5.2.0 (A9 iOS 15.8.8): Trung tâm All-in-One 4 Tab TF_MultiAccount_Hub v2.2.1.0 (http://tf-hub.test/) với API Replay Core, Anti-2FA Fingerprint, Bảng Log trạng thái & Quản lý gói Sandbox StoreKit 1/2.",
+  "description": "Bộ công cụ TestFlight toàn diện v5.6.0.0 (A9 iOS 15.8.8): Trung tâm All-in-One 4 Tab TF_MultiAccount_Hub v2.3.0.0 (http://tf-hub.test/) với Round-Robin API Replay, Anti-2FA Fingerprint, Quản lý gói Sandbox TestFlight (StoreKit 1/2 + Replay verifyReceipt) & Bảng Log trạng thái.",
   "icon": "https://avatars.githubusercontent.com/u/170521226?s=400&u=9e2c15d038fb2e92bbbf4f1ba3ff9b0e447efeb6&v=4",
   "repo": "https://github.com/bunnytaidai/TestFlight-All",
   "apps": [
@@ -215,14 +215,16 @@
     },
     {
       "id": "TF_MultiAccount_Hub",
-      "name": "✈️ TF Multi-Account Hub v2.1.0.0 (4 Tab: Link + Anti-2FA API Replay + Sandbox + Log)",
+      "name": "✈️ TF Multi-Account Hub v2.3.0.0 (4 Tab: Link + Round-Robin Replay + Sandbox TestFlight + Log)",
       "keys": [
         "TF_HUB_ACCOUNTS",
         "TF_HUB_APPLIST",
         "TF_HUB_APP_BUILDS",
         "TF_HUB_LINKS",
         "TF_HUB_SUBS",
+        "TF_HUB_RECEIPTS",
         "TF_HUB_WATCHLIST",
+        "TF_HUB_RR_IDX",
         "TF_HUB_MODE",
         "TF_HUB_ACTIVE_ID",
         "TF_HUB_COUNTRY",

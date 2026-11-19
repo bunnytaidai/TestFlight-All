@@ -1,11 +1,11 @@
-#!name = ✈️ TF Multi-Account Hub v2.2.1.0 (Loon Pro — 4 Tab + API Replay + Log)
-#!desc = Trung tâm All-in-One 4 Tab cho Loon 3.5+ (A9 iOS 15.8.8): Quản lý CRUD Link TestFlight + Kho Apple ID Anti-2FA + API Replay tự tham gia/cập nhật/install + Lách iOS cũ & Phá vùng + Theo dõi chỉ đọc Sandbox StoreKit 1/2 + Bảng Log trạng thái. Mở Safari: http://tf-hub.test/
+#!name = ✈️ TF Multi-Account Hub v2.3.0.0 (Loon Pro — 4 Tab + Sandbox Replay + Round-Robin)
+#!desc = Trung tâm All-in-One 4 Tab cho Loon 3.5+ (A9 iOS 15.8.8): Quản lý CRUD Link TestFlight + Kho Apple ID Anti-2FA xoay vòng Round-Robin + API Replay tự tham gia/cập nhật/install + Lách iOS cũ & Phá vùng + Quản lý gói Sandbox TestFlight (StoreKit 1/2 + Replay verifyReceipt) + Bảng Log trạng thái. Mở Safari: http://tf-hub.test/
 #!openUrl = http://tf-hub.test/
-#!author = Hely-T & Antigravity (v2.2.1.0)
+#!author = Hely-T & Antigravity (v2.3.0.0)
 #!homepage = https://github.com/bunnytaidai/TestFlight-All
 #!icon = https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png
-#!version = 2.2.1.0
-#!date = 2026-11-19 15:50:00
+#!version = 2.3.0.0
+#!date = 2026-11-19 17:12:00
 
 [Argument]
 HUB_MODE = select, "MERGE", "PIN", tag = Chế độ tráo nick, desc = MERGE gộp mọi nick hoặc PIN khóa 1 nick
@@ -35,7 +35,8 @@ http-request ^https?:\/\/testflight\.apple\.com\/ script-path = https://raw.gith
 # 3. MITM Response TestFlight — Lách iOS cũ (modBuild) & Ép hiện nút Cài đặt
 http-response ^https?:\/\/testflight\.apple\.com\/ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js, requires-body = true, max-size = 524288, timeout = 20, tag = TF Hub Response modBuild, argument = [{HUB_MODE},{HUB_COUNTRY},{HUB_KEEPALIVE},{HUB_AUTO_JOIN},{HUB_AUTO_UPDATE}]
 
-# 4. MITM Response StoreKit 1 & 2 Sandbox — Chỉ đọc ghi nhận gói đăng ký kiểm thử
+# 4. MITM StoreKit 1 & 2 Sandbox — Chỉ đọc ghi nhận gói đăng ký & mẫu verifyReceipt kiểm tra hạn
+http-request ^https?:\/\/sandbox\.itunes\.apple\.com\/verifyReceipt script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js, requires-body = true, max-size = 524288, timeout = 20, tag = TF Hub Sandbox Receipt Capture RO
 http-response ^https?:\/\/(sandbox\.itunes|mzstorekit-sb\.itunes|api\.storekit-sandbox\.itunes)\.apple\.com\/ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js, requires-body = true, max-size = 524288, timeout = 20, tag = TF Hub StoreKit Sandbox RO
 
 # 5. Cron ngầm mỗi 5 phút — Nuôi token Keep-Alive + Auto Update + Sniper + Nhắc gia hạn
