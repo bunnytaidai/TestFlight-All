@@ -1,18 +1,19 @@
 /*
- * Script: TF_Subscription_Manager.js (Loon & Shadowrocket — TestFlight / Sandbox Subscription Inspector & Renewal Watchlist)
- * Phiên bản: version.5.2.0.0 (Tối ưu iPhone A9 iOS 15.8.8 Rootless)
+ * Script: TF_Subscription_Manager.js (Loon & Shadowrocket — Kho Token Apple ID, Tự GET App TestFlight & Quản Lý Gói Đăng Ký Sandbox)
+ * Phiên bản: version.5.3.0.0 (Tối ưu iPhone A9 iOS 15.8.8 Rootless — RAM < 15MB)
  *
- * Chức năng thực tế & Cam kết an toàn (Authorized QA & Read-Only StoreKit Audit):
- * 1. Quan sát CHỈ ĐỌC ($done({})) các phản hồi gói đăng ký TestFlight / StoreKit Sandbox
- *    (sandbox.itunes.apple.com, mzstorekit-sb.itunes.apple.com, api.storekit-sandbox.itunes.apple.com)
- *    để liệt kê danh sách các gói đăng ký đã mua gắn với từng nick Apple ID trong kho TF_ACCOUNTS.
- * 2. Tự động che ẩn (Redact) toàn bộ header xác thực nhạy cảm (Cookie, Authorization, X-Apple-I-MD*, X-Dsid, X-Token).
- * 3. Giao diện Web nội bộ `http://tf-sub.test/` (mở trực tiếp trên Safari 0ms):
- *    - Hiển thị danh sách nick Apple ID đã lưu & bật/tắt tự động đảo nick (`TF_AUTO_SWITCH_ACCOUNT`).
- *    - Xem danh sách gói đăng ký TestFlight / Sandbox đã phát hiện (hoặc thêm thủ công).
- *    - Tích chọn cố định các gói cần theo dõi gia hạn (`TF_SUB_WATCHLIST`).
- * 4. Cron định kỳ kiểm tra hạn gói đã chọn: khi gói Sandbox sắp hết chu kỳ tự gia hạn của Apple (6-12 lần),
- *    tự động gửi thông báo đẩy kèm nút 1 chạm mở thẳng `itms-apps://apps.apple.com/account/subscriptions` để gia hạn lại.
+ * Chức năng chính & Cam kết an toàn (Authorized QA & Read-Only StoreKit Audit):
+ * 1. Hiển thị toàn bộ Kho Token Apple ID đã lưu (`TF_ACCOUNTS`: account_id, X-Session-Id, X-Session-Digest, X-Request-Id, User-Agent)
+ *    với chế độ che mờ ký tự nhạy cảm để đổi qua lại giữa các nick đã xác minh OTP/2FA mà KHÔNG cần đăng nhập lại.
+ * 2. Tự động dùng Token đã lưu của TỪNG nick Apple ID gọi `GET https://testflight.apple.com/v3/accounts/{key}/apps`
+ *    chạy ngầm (Cron & nút 1 chạm trên http://tf-sub.test/) để lấy danh sách ứng dụng TestFlight đang có của từng nick
+ *    và tự kiểm tra sức khỏe Token (Sống 200 / Hết hạn 401).
+ * 3. Quan sát CHỈ ĐỌC ($done({})) phản hồi StoreKit Sandbox (`sandbox.itunes.apple.com`, `mzstorekit-sb.itunes.apple.com`,
+ *    `api.storekit-sandbox.itunes.apple.com`) để ghi nhận gói mua kiểm thử theo từng nick Apple ID.
+ * 4. Bảng Web nội bộ `http://tf-sub.test/` (0ms trên Safari, không cần file .deb):
+ *    - Xem & đổi nick Apple ID 1 chạm, bật/tắt tự đảo nick (`TF_AUTO_SWITCH_ACCOUNT`).
+ *    - Quét (GET) toàn bộ app TestFlight của từng nick.
+ *    - Tích chọn cố định các gói kiểm thử cần theo dõi gia hạn (`TF_SUB_WATCHLIST`) & nhắc gia hạn 1 chạm khi hết chu kỳ Sandbox.
  * 5. TUYỆT ĐỐI KHÔNG sửa đổi/giả mạo biên lai StoreKit và KHÔNG tự ý phát lại giao dịch thanh toán.
  */
 
@@ -22,8 +23,10 @@ const STORE_KEY_SUBS = 'TF_SANDBOX_SUBSCRIPTIONS';
 const STORE_KEY_WATCH = 'TF_SUB_WATCHLIST';
 const STORE_KEY_ALERT = 'TF_SUB_ALERT_CACHE';
 const STORE_KEY_ACCOUNTS = 'TF_ACCOUNTS';
+const STORE_KEY_ACCOUNT_APPS = 'TF_ACCOUNT_APPS_CACHE';
 const STORE_KEY_ACTIVE_IDX = 'TF_ACTIVE_ACCOUNT_IDX';
 const STORE_KEY_AUTO_SWITCH = 'TF_AUTO_SWITCH_ACCOUNT';
+const DEFAULT_UA = 'TestFlight/3.5.0 (iPhone; iOS 15.8.8; Scale/2.00)';
 
 function getPlatform() {
     if (typeof $loon !== 'undefined') return 'Loon';
@@ -89,6 +92,13 @@ function escapeHtml(str) {
         .replace(/'/g, '&#39;');
 }
 
+function maskSecret(val) {
+    if (!val) return '(chưa có)';
+    const s = String(val);
+    if (s.length <= 10) return `${s.slice(0, 3)}***`;
+    return `${s.slice(0, 6)}...${s.slice(-4)}`;
+}
+
 function decodeBase64UrlJson(b64Url) {
     try {
         if (!b64Url || typeof b64Url !== 'string') return null;
@@ -133,6 +143,81 @@ function getActiveAccountLabel() {
     return key ? `Apple ID (${key.slice(0, 8)})` : 'Apple ID Mặc Định';
 }
 
+function fetchAppsForAccount(account) {
+    return new Promise((resolve) => {
+        if (!account || !account.key || !account.session_id || typeof $httpClient === 'undefined') {
+            resolve({ ok: false, status: 0, apps: [], reason: 'Thiếu Token phiên' });
+            return;
+        }
+        const url = `https://testflight.apple.com/v3/accounts/${account.key}/apps?platform=ios`;
+        const headers = {
+            'X-Session-Id': account.session_id,
+            'X-Session-Digest': account.session_digest || '',
+            'X-Request-Id': account.request_id || '',
+            'User-Agent': account.tf_ua || DEFAULT_UA,
+            'Accept': 'application/json'
+        };
+        $httpClient.get({ url, headers, timeout: 10 }, (err, resp, body) => {
+            if (err) {
+                resolve({ ok: false, status: 0, apps: [], reason: String(err) });
+                return;
+            }
+            const status = resp ? (resp.status || resp.statusCode || 0) : 0;
+            if (status === 401 || status === 403) {
+                resolve({ ok: false, status, apps: [], reason: `Token hết hạn (HTTP ${status}) — mở lại TestFlight 1 lần để làm mới` });
+                return;
+            }
+            if (status !== 200 || !body) {
+                resolve({ ok: false, status, apps: [], reason: `HTTP ${status}` });
+                return;
+            }
+            try {
+                const parsed = JSON.parse(body);
+                const list = Array.isArray(parsed && parsed.data) ? parsed.data : [];
+                const apps = list.map(item => ({
+                    appId: String(item.id || item.appAdamId || ''),
+                    name: item.name || item.bundleId || 'TestFlight App',
+                    bundleId: item.bundleId || '',
+                    version: (item.latestBuild && item.latestBuild.cfBundleShortVersion) || item.version || '',
+                    build: (item.latestBuild && item.latestBuild.cfBundleVersion) || '',
+                    expires: (item.latestBuild && item.latestBuild.expiration) || ''
+                }));
+                resolve({ ok: true, status: 200, apps, reason: 'OK' });
+            } catch (e) {
+                resolve({ ok: false, status, apps: [], reason: 'Lỗi đọc JSON Apple' });
+            }
+        });
+    });
+}
+
+async function syncAllAccountsApps() {
+    const pool = loadJson(STORE_KEY_ACCOUNTS, []);
+    const cache = loadJson(STORE_KEY_ACCOUNT_APPS, {});
+    if (!Array.isArray(pool) || pool.length === 0) {
+        return { totalAccounts: 0, okAccounts: 0, expiredAccounts: 0 };
+    }
+    let okAccounts = 0;
+    let expiredAccounts = 0;
+
+    for (const acc of pool) {
+        if (!acc || !acc.key) continue;
+        const res = await fetchAppsForAccount(acc);
+        cache[acc.key] = {
+            accountName: acc.name || acc.key.slice(0, 8),
+            status: res.ok ? 'ALIVE' : (res.status === 401 || res.status === 403 ? 'EXPIRED' : 'ERROR'),
+            httpStatus: res.status,
+            reason: res.reason,
+            apps: res.ok ? res.apps : ((cache[acc.key] && cache[acc.key].apps) || []),
+            syncedAt: new Date().toISOString()
+        };
+        if (res.ok) okAccounts++;
+        else if (res.status === 401 || res.status === 403) expiredAccounts++;
+    }
+
+    writeStore(JSON.stringify(cache), STORE_KEY_ACCOUNT_APPS);
+    return { totalAccounts: pool.length, okAccounts, expiredAccounts };
+}
+
 function upsertSubscriptionRecord(rec) {
     if (!rec || !rec.productId) return false;
     const list = loadJson(STORE_KEY_SUBS, []);
@@ -160,7 +245,6 @@ function upsertSubscriptionRecord(rec) {
         arr.unshift(merged);
     }
 
-    // Giới hạn tối đa 60 bản ghi để giữ bộ nhớ NetworkExtension < 15MB trên A9 iOS 15.8.8
     writeStore(JSON.stringify(arr.slice(0, 60)), STORE_KEY_SUBS);
     return true;
 }
@@ -173,12 +257,10 @@ function extractSubscriptionsFromSandboxBody(bodyStr, url) {
     let count = 0;
     const accountName = getActiveAccountLabel();
 
-    // 1. JSON (verifyReceipt, StoreKit 2 JWS, App Store Server API v2 Sandbox)
     if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
         try {
             const data = JSON.parse(trimmed);
 
-            // A. StoreKit 1 verifyReceipt: latest_receipt_info & pending_renewal_info
             const renewalMap = {};
             if (Array.isArray(data.pending_renewal_info)) {
                 for (const r of data.pending_renewal_info) {
@@ -208,7 +290,6 @@ function extractSubscriptionsFromSandboxBody(bodyStr, url) {
                 if (ok) count++;
             }
 
-            // B. StoreKit 2 / App Store Server API v2 Sandbox: signedTransactionInfo / signedTransactions / data[].lastTransactions[]
             const jwsCandidates = [];
             if (typeof data.signedTransactionInfo === 'string') jwsCandidates.push(data.signedTransactionInfo);
             if (Array.isArray(data.signedTransactions)) {
@@ -247,7 +328,6 @@ function extractSubscriptionsFromSandboxBody(bodyStr, url) {
             console.log(`[${PLATFORM}-TF-Sub] Bỏ qua JSON không chuẩn tại ${url}: ${e}`);
         }
     } else if (trimmed.includes('<plist') || trimmed.includes('<key>')) {
-        // 2. Apple XML Plist (mzstorekit-sb / sandbox.itunes.apple.com)
         const productMatch = trimmed.match(/<key>product-?id<\/key>\s*<string>([^<]{1,120})<\/string>/i)
             || trimmed.match(/<key>productId<\/key>\s*<string>([^<]{1,120})<\/string>/i);
         const bidMatch = trimmed.match(/<key>(?:bid|bundle-?id|bundleId)<\/key>\s*<string>([^<]{1,120})<\/string>/i);
@@ -309,21 +389,38 @@ function renderDashboardHtml(flashMsg) {
     const subs = loadJson(STORE_KEY_SUBS, []);
     const watchlist = new Set(loadJson(STORE_KEY_WATCH, []));
     const pool = loadJson(STORE_KEY_ACCOUNTS, []);
+    const appsCache = loadJson(STORE_KEY_ACCOUNT_APPS, {});
     const activeIdx = parseInt(readStore(STORE_KEY_ACTIVE_IDX, '0'), 10) || 0;
     const autoSwitch = readStore(STORE_KEY_AUTO_SWITCH, 'true') !== 'false';
+    const queueIds = readStore('APP_ID', 'LPQmtkUs,Xh9VNQoA,2mcx1R3I,YSo8aVCS,CzpZHGuS');
 
     const accountHtml = Array.isArray(pool) && pool.length > 0
         ? pool.map((acc, i) => {
             const isAct = i === activeIdx;
+            const info = appsCache[acc.key] || null;
+            const statusBadge = !info
+                ? '<span class="badge warn">CHƯA QUÉT</span>'
+                : (info.status === 'ALIVE'
+                    ? '<span class="badge ok">TOKEN SỐNG (NO-2FA)</span>'
+                    : (info.status === 'EXPIRED' ? '<span class="badge red">HẾT HẠN 401</span>' : '<span class="badge warn">LỖI MẠNG</span>'));
+            const fetchedApps = (info && Array.isArray(info.apps)) ? info.apps : [];
+            const appsPreview = fetchedApps.length > 0
+                ? `<div class="app-tags">${fetchedApps.slice(0, 8).map(a => `<span class="tag">${escapeHtml(a.name)}${a.version ? ` v${escapeHtml(a.version)}` : ''}</span>`).join('')}</div>`
+                : '';
+
             return `<div class="acc-item ${isAct ? 'active' : ''}">
-                <div>
-                    <strong>${escapeHtml(acc.name || `Apple ID #${i + 1}`)}</strong>
-                    <div class="muted">Key: ${escapeHtml((acc.key || '').slice(0, 8))}... | Đã vào: ${(acc.joinedApps || []).length} app</div>
+                <div style="flex:1">
+                    <div><strong>${escapeHtml(acc.name || `Apple ID #${i + 1}`)}</strong> ${statusBadge}</div>
+                    <div class="muted">account_id: <code>${escapeHtml(maskSecret(acc.key))}</code> • session_id: <code>${escapeHtml(maskSecret(acc.session_id))}</code></div>
+                    <div class="muted">Đã săn: ${(acc.joinedApps || []).length} link • App TestFlight đã GET: ${fetchedApps.length}</div>
+                    ${appsPreview}
                 </div>
-                <a class="btn small" href="/switch?idx=${i}">${isAct ? 'Đang chọn' : 'Chọn nick'}</a>
+                <div class="actions" style="margin-top:0">
+                    <a class="btn ${isAct ? 'primary' : ''}" href="/switch?idx=${i}">${isAct ? '✅ Đang chọn' : '🔄 Đổi nick'}</a>
+                </div>
             </div>`;
         }).join('')
-        : `<div class="muted">Chưa có nick Apple ID nào trong kho <code>TF_ACCOUNTS</code>. Hãy mở ứng dụng TestFlight khi bật VPN để tự động lưu nick.</div>`;
+        : `<div class="muted">Chưa có nick Apple ID nào trong kho <code>TF_ACCOUNTS</code>. Hãy mở ứng dụng TestFlight 1 lần khi bật VPN để tự động bắt trọn 5 tham số Token!</div>`;
 
     const subRows = Array.isArray(subs) && subs.length > 0
         ? subs.map(s => {
@@ -333,12 +430,10 @@ function renderDashboardHtml(flashMsg) {
                 ? '<span class="badge red">HẾT HẠN</span>'
                 : (expInfo.soon ? '<span class="badge warn">SẮP HẾT</span>' : '<span class="badge ok">ĐANG HOẠT ĐỘNG</span>');
             return `<div class="card-row">
-                <div class="row-top">
-                    <div>
-                        <strong>${escapeHtml(s.productId)}</strong> ${badge}
-                        <div class="muted">App: ${escapeHtml(s.bundleId)} • Nick: ${escapeHtml(s.accountName)}</div>
-                        <div class="muted">TxID: ${escapeHtml(s.originalTransactionId)} • ${escapeHtml(expInfo.label)}</div>
-                    </div>
+                <div>
+                    <strong>${escapeHtml(s.productId)}</strong> ${badge}
+                    <div class="muted">App: ${escapeHtml(s.bundleId)} • Nick: ${escapeHtml(s.accountName)}</div>
+                    <div class="muted">TxID: ${escapeHtml(s.originalTransactionId)} • ${escapeHtml(expInfo.label)}</div>
                 </div>
                 <div class="actions">
                     <a class="btn ${isPinned ? 'primary' : ''}" href="/toggle?uid=${encodeURIComponent(s.uid)}">${isPinned ? '✅ Đang theo dõi gia hạn' : '➕ Chọn gia hạn'}</a>
@@ -347,64 +442,69 @@ function renderDashboardHtml(flashMsg) {
                 </div>
             </div>`;
         }).join('')
-        : `<div class="muted">Chưa ghi nhận gói đăng ký TestFlight / Sandbox nào. Mở ứng dụng TestFlight có gói Sandbox hoặc thêm thủ công bên dưới.</div>`;
+        : `<div class="muted">Chưa ghi nhận gói đăng ký TestFlight / Sandbox nào. Mở ứng dụng TestFlight có gói mua kiểm thử hoặc thêm thủ công bên dưới.</div>`;
 
     return `<!doctype html>
 <html lang="vi">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Quản Lý Gói Đăng Ký TestFlight & Đảo Nick Apple ID</title>
+<title>Kho Token Apple ID & Quản Lý Gói TestFlight (v5.3)</title>
 <style>
   body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#0f172a;color:#e2e8f0;margin:0;padding:16px;line-height:1.5}
-  .wrap{max-width:760px;margin:0 auto}
-  h1{font-size:20px;margin:0 0 8px}
-  h2{font-size:15px;margin:18px 0 8px;color:#38bdf8}
+  .wrap{max-width:780px;margin:0 auto}
+  h1{font-size:19px;margin:0 0 6px}
+  h2{font-size:15px;margin:16px 0 8px;color:#38bdf8}
   .box{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:14px;margin-bottom:14px}
   .muted{color:#94a3b8;font-size:12px}
   .flash{background:#065f46;color:#ecfdf5;padding:10px 12px;border-radius:8px;margin-bottom:12px;font-size:13px}
   .note{background:#172554;border-left:4px solid #38bdf8;padding:10px 12px;border-radius:6px;font-size:12px;color:#cbd5e1;margin-bottom:12px}
   .acc-item,.card-row{background:#0f172a;border:1px solid #334155;border-radius:10px;padding:10px 12px;margin-bottom:8px}
-  .acc-item{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .acc-item{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
   .acc-item.active{border-color:#38bdf8}
   .actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
   .btn{display:inline-block;padding:6px 10px;border-radius:8px;background:#334155;color:#f8fafc;text-decoration:none;font-size:12px;border:none;cursor:pointer}
   .btn.primary{background:#0284c7}
+  .btn.ok{background:#059669}
   .btn.danger{background:#991b1b}
   .badge{font-size:10px;padding:2px 6px;border-radius:6px;margin-left:4px;font-weight:700}
   .badge.ok{background:#065f46;color:#a7f3d0}
   .badge.warn{background:#92400e;color:#fde68a}
   .badge.red{background:#991b1b;color:#fecaca}
+  .app-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+  .tag{background:#1e293b;border:1px solid #475569;color:#cbd5e1;font-size:11px;padding:2px 6px;border-radius:6px}
+  code{background:#334155;padding:1px 4px;border-radius:4px;font-size:11px}
   input{width:100%;box-sizing:border-box;padding:8px;margin:4px 0 8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#f8fafc;font-size:13px}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>📦 Quản Lý Gói Đăng Ký TestFlight & Đảo Nick Apple ID</h1>
-  <div class="muted">Nền tảng: ${escapeHtml(PLATFORM)} • Chế độ StoreKit Chỉ Đọc (Read-Only Audit) • Tối ưu A9 iOS 15.8.8</div>
+  <h1>🔐 Kho Token Apple ID & Gói Đăng Ký TestFlight</h1>
+  <div class="muted">Nền tảng: ${escapeHtml(PLATFORM)} • v5.3.0.0 • A9 iOS 15.8.8 • Hàng đợi săn: <code>${escapeHtml(queueIds)}</code></div>
   ${flashMsg ? `<div class="flash">${escapeHtml(flashMsg)}</div>` : ''}
 
   <div class="note">
-    <strong>Cơ chế Apple TestFlight / Sandbox:</strong> Các gói đăng ký trong TestFlight miễn phí và được Apple Sandbox tự động gia hạn tối đa 6–12 chu kỳ nhanh. Bảng này tự động ghi nhận gói (chỉ đọc, không sửa biên lai), theo dõi hạn và báo đẩy 1 chạm khi cần gia hạn lại.
+    <strong>Đổi Nick Không Hỏi OTP/2FA:</strong> Khi nick đã qua OTP/2FA và mở TestFlight 1 lần, 5 tham số phiên (<code>account_id</code>, <code>X-Session-Id</code>, <code>X-Session-Digest</code>, <code>X-Request-Id</code>, <code>User-Agent</code>) được lưu trong <code>TF_ACCOUNTS</code> để tự đảo nick săn 5 link &amp; tự GET app chạy ngầm không cần đăng nhập lại.
   </div>
 
   <div class="box">
-    <h2>👤 Kho Nick Apple ID (${Array.isArray(pool) ? pool.length : 0} nick)</h2>
-    <div style="margin-bottom:10px">
-      <a class="btn ${autoSwitch ? 'primary' : ''}" href="/toggle-rotate">${autoSwitch ? '🔁 Tự động đảo nick: ĐANG BẬT' : '⏸ Tự động đảo nick: ĐANG TẮT'}</a>
-      <a class="btn" href="http://tf-link.test/">✈️ Mở Quản Lý Link TestFlight</a>
-      <a class="btn" href="http://tf-radar.test/">📡 Mở Radar Slot</a>
+    <h2>👤 Kho Token Apple ID Đã Lưu (${Array.isArray(pool) ? pool.length : 0} nick)</h2>
+    <div class="actions" style="margin-top:0;margin-bottom:10px">
+      <a class="btn ${autoSwitch ? 'primary' : ''}" href="/toggle-rotate">${autoSwitch ? '🔁 Tự động đảo nick: BẬT' : '⏸ Tự động đảo nick: TẮT'}</a>
+      <a class="btn ok" href="/sync-all">🔄 Quét (GET) App TestFlight Tất Cả Nick</a>
+      <a class="btn" href="http://boxjs.com/">📦 Mở BoxJS</a>
+      <a class="btn" href="http://tf-radar.test/">📡 Radar Slot</a>
     </div>
     ${accountHtml}
   </div>
 
   <div class="box">
-    <h2>🧾 Gói Đăng Ký TestFlight / Sandbox Đã Mua (${Array.isArray(subs) ? subs.length : 0})</h2>
+    <h2>🧾 Gói Mua Kiểm Thử TestFlight / Sandbox (${Array.isArray(subs) ? subs.length : 0})</h2>
     ${subRows}
   </div>
 
   <div class="box">
-    <h2>➕ Thêm Gói Đăng Ký TestFlight Cần Theo Dõi Thủ Công</h2>
+    <h2>➕ Thêm Gói Đăng Ký TestFlight Cần Theo Dõi Gia Hạn</h2>
     <form method="GET" action="/add">
       <label class="muted">Mã Gói (Product ID, ví dụ: com.app.pro.monthly)</label>
       <input name="productId" required placeholder="com.example.pro.monthly"/>
@@ -412,7 +512,7 @@ function renderDashboardHtml(flashMsg) {
       <input name="bundleId" placeholder="com.example.app"/>
       <label class="muted">Original Transaction ID (tùy chọn)</label>
       <input name="origId" placeholder="2000000..."/>
-      <button class="btn primary" type="submit">Lưu & Chọn Theo Dõi Gia Hạn</button>
+      <button class="btn primary" type="submit">Lưu &amp; Chọn Theo Dõi Gia Hạn</button>
     </form>
   </div>
 </div>
@@ -420,11 +520,14 @@ function renderDashboardHtml(flashMsg) {
 </html>`;
 }
 
-function handleWebDashboard(url) {
+async function handleWebDashboard(url) {
     const q = parseQueryParams(url);
     let flash = '';
 
-    if (url.includes('/toggle-rotate')) {
+    if (url.includes('/sync-all')) {
+        const res = await syncAllAccountsApps();
+        flash = `Đã GET xong ${res.totalAccounts} nick Apple ID: ${res.okAccounts} nick Token sống, ${res.expiredAccounts} nick hết hạn 401.`;
+    } else if (url.includes('/toggle-rotate')) {
         const cur = readStore(STORE_KEY_AUTO_SWITCH, 'true') !== 'false';
         writeStore(cur ? 'false' : 'true', STORE_KEY_AUTO_SWITCH);
         flash = cur ? 'Đã TẮT tự động đảo nick Apple ID.' : 'Đã BẬT tự động đảo nick Apple ID.';
@@ -438,7 +541,8 @@ function handleWebDashboard(url) {
             if (acc.session_id) writeStore(acc.session_id, 'session_id');
             if (acc.session_digest) writeStore(acc.session_digest, 'session_digest');
             if (acc.request_id) writeStore(acc.request_id, 'request_id');
-            flash = `Đã chuyển sang nick: ${acc.name || `Apple ID #${idx + 1}`}`;
+            if (acc.tf_ua) writeStore(acc.tf_ua, 'tf_ua');
+            flash = `Đã chuyển sang nick: ${acc.name || `Apple ID #${idx + 1}`} (Không cần OTP/2FA)`;
         }
     } else if (url.includes('/toggle') && q.uid) {
         const watch = new Set(loadJson(STORE_KEY_WATCH, []));
@@ -487,13 +591,31 @@ function handleWebDashboard(url) {
     });
 }
 
-function runCronWatchlistCheck() {
+async function runCronWatchlistCheck() {
+    // 1. Tự động GET danh sách App TestFlight của từng nick Apple ID đã lưu (chạy ngầm, không cần OTP/2FA)
+    const syncRes = await syncAllAccountsApps();
+    if (syncRes.expiredAccounts > 0) {
+        const alertCache = loadJson(STORE_KEY_ALERT, {});
+        const lastExpAlert = parseInt(alertCache._token_exp || '0', 10);
+        if (isNaN(lastExpAlert) || Date.now() - lastExpAlert > 3600000) {
+            alertCache._token_exp = Date.now();
+            writeStore(JSON.stringify(alertCache), STORE_KEY_ALERT);
+            sendNotify(
+                `⚠️ Có ${syncRes.expiredAccounts}/${syncRes.totalAccounts} nick Apple ID hết hạn Token`,
+                'Mở TestFlight 1 lần để tự làm mới phiên',
+                'Xem chi tiết trạng thái từng nick tại http://tf-sub.test/',
+                'http://tf-sub.test/'
+            );
+        }
+    }
+
+    // 2. Kiểm tra hạn các gói mua kiểm thử đã chọn cố định trong danh sách gia hạn
     const subs = loadJson(STORE_KEY_SUBS, []);
     const watchlist = new Set(loadJson(STORE_KEY_WATCH, []));
     const alertCache = loadJson(STORE_KEY_ALERT, {});
 
     if (!Array.isArray(subs) || watchlist.size === 0) {
-        console.log(`[${PLATFORM}-TF-Sub] Chưa có gói đăng ký TestFlight nào được chọn theo dõi gia hạn.`);
+        console.log(`[${PLATFORM}-TF-Sub] Đã GET ${syncRes.okAccounts}/${syncRes.totalAccounts} nick Apple ID. Chưa chọn gói gia hạn nào.`);
         $done();
         return;
     }
@@ -512,7 +634,7 @@ function runCronWatchlistCheck() {
                         ? `🔄 Cần Gia Hạn Gói TestFlight: ${s.productId}`
                         : `⏳ Gói TestFlight Sắp Hết Chu Kỳ: ${s.productId}`,
                     `Nick: ${s.accountName} • ${s.bundleId}`,
-                    `${expInfo.label} — Nhấn để mở mục Đăng ký trên iOS và gia hạn lại ngay!`,
+                    `${expInfo.label} — Nhấn để mở mục Đăng ký iOS và gia hạn lại ngay!`,
                     'itms-apps://apps.apple.com/account/subscriptions'
                 );
             }
@@ -522,17 +644,17 @@ function runCronWatchlistCheck() {
     if (alerted > 0) {
         writeStore(JSON.stringify(alertCache), STORE_KEY_ALERT);
     }
-    console.log(`[${PLATFORM}-TF-Sub] Đã kiểm tra ${watchlist.size} gói đăng ký được chọn (Nhắc gia hạn: ${alerted}).`);
+    console.log(`[${PLATFORM}-TF-Sub] GET ${syncRes.okAccounts}/${syncRes.totalAccounts} nick | Kiểm tra ${watchlist.size} gói (Nhắc: ${alerted}).`);
     $done();
 }
 
-(function main() {
+(async function main() {
     try {
         const isReq = typeof $request !== 'undefined' && $request !== null;
         const isResp = typeof $response !== 'undefined' && $response !== null;
 
         if (isReq && !isResp && /^http:\/\/tf-sub\.test(\/.*)?$/i.test($request.url || '')) {
-            handleWebDashboard($request.url);
+            await handleWebDashboard($request.url);
             return;
         }
 
@@ -542,12 +664,11 @@ function runCronWatchlistCheck() {
             if (count > 0) {
                 console.log(`[${PLATFORM}-TF-Sub] ✅ Đã ghi nhận chỉ đọc ${count} gói đăng ký TestFlight/Sandbox từ ${reqUrl}`);
             }
-            // Cam kết 100% chỉ đọc: không bao giờ sửa đổi gói tin StoreKit gốc
             $done({});
             return;
         }
 
-        runCronWatchlistCheck();
+        await runCronWatchlistCheck();
     } catch (err) {
         console.log(`[${PLATFORM}-TF-Sub] Lỗi ngoại lệ được bảo vệ: ${err}`);
         $done({});
