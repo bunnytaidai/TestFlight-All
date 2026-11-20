@@ -1,16 +1,19 @@
-#!name=✈️ TF Multi-Account Hub v2.3.0.0 (4 Tab + Sandbox Replay + Round-Robin)
-#!desc=Trung tâm All-in-One 4 Tab cho Shadowrocket (A9 iOS 15.8.8 + SSL Kill Switch 3): CRUD Link TestFlight + Kho Apple ID Anti-2FA xoay vòng Round-Robin + API Replay tự tham gia/cập nhật/install + Lách iOS cũ & Phá vùng + Quản lý gói Sandbox TestFlight (StoreKit 1/2 + Replay verifyReceipt) + Bảng Log trạng thái. Web UI: http://tf-hub.test/
+#!name=✈️ TF Multi-Account Hub v2.6.0.0 (Trust-First + Auto-DC + 4 Tab)
+#!desc=Trung tâm All-in-One 4 Tab cho Shadowrocket (A9 iOS 15.8.8): Bắt thụ động đa điểm cuối trên testflight.apple.com (KHÔNG MITM idmsa/gsa để giữ đăng nhập OTP/2FA nguyên bản) + Tự động đảo cụm DC Apple (dc=st ↔ dc=pv) chống 401 ảo + Xoay vòng Round-Robin giữ sống 24/7 + Copy/Import Full JSON (0 dấu ****) tương thích iOS Safari + Sandbox StoreKit 1/2 RO. Web UI: http://tf-hub.test/
 #!openUrl=http://tf-hub.test/
-#!author=Hely-T & Antigravity (v2.3.0.0)
+#!author=Hely-T & Antigravity (v2.6.0.0)
 #!homepage=https://github.com/bunnytaidai/TestFlight-All
 #!icon=https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png
-#!version=2.3.0.0
+#!version=2.6.0.0
 
 [General]
-skip-proxy = %APPEND% iosapps.itunes.apple.com
+skip-proxy = %APPEND% iosapps.itunes.apple.com, idmsa.apple.com, gsa.apple.com
 
 [Rule]
 DOMAIN,tf-hub.test,DIRECT
+DOMAIN,idmsa.apple.com,DIRECT
+DOMAIN,gsa.apple.com,DIRECT
+DOMAIN,appleid.apple.com,DIRECT
 DOMAIN-KEYWORD,testflight.apple.com,DIRECT
 
 [Host]
@@ -22,7 +25,9 @@ TF_Hub_Request = type=http-request,pattern=^https?:\/\/testflight\.apple\.com\/,
 TF_Hub_Response = type=http-response,pattern=^https?:\/\/testflight\.apple\.com\/,requires-body=1,max-size=524288,timeout=20,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js
 TF_Hub_StoreKit_ReqRO = type=http-request,pattern=^https?:\/\/sandbox\.itunes\.apple\.com\/verifyReceipt,requires-body=1,max-size=524288,timeout=20,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js
 TF_Hub_StoreKit_RO = type=http-response,pattern=^https?:\/\/(sandbox\.itunes|mzstorekit-sb\.itunes|api\.storekit-sandbox\.itunes)\.apple\.com\/,requires-body=1,max-size=524288,timeout=20,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js
-TF_Hub_Cron = type=cron,cronexp="0 */5 * * * *",timeout=25,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js
+TF_Hub_Cron = type=cron,cronexp="0 */5 * * * *",wake-system=1,timeout=30,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js
 
 [MITM]
 hostname = %APPEND% testflight.apple.com, sandbox.itunes.apple.com, mzstorekit-sb.itunes.apple.com, api.storekit-sandbox.itunes.apple.com
+enable = true
+h2 = true

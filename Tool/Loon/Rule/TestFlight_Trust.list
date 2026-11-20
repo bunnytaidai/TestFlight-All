@@ -1,0 +1,43 @@
+# ==============================================================================
+# RULE PHÂN LUỒNG TRUST-FIRST CHO TESTFLIGHT & APPLE ID (LOON v1.0.0.0)
+# Mục tiêu: Đạt độ tin cậy (Trust) cao nhất, tránh lỗi 2FA/OTP và chống khóa nick.
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# NHÓM 1: BẢNG ĐIỀU KHIỂN WEB NỘI BỘ (XỬ LÝ LOCAL 0ms)
+# ------------------------------------------------------------------------------
+DOMAIN,tf-hub.test
+DOMAIN,tf-sub.test
+DOMAIN,tf-radar.test
+DOMAIN,tf-status.test
+DOMAIN,tf-link.test
+DOMAIN,tf-diag.test
+DOMAIN-SUFFIX,boxjs.com
+DOMAIN-SUFFIX,boxjs.net
+
+# ------------------------------------------------------------------------------
+# NHÓM 2: MÁY CHỦ TESTFLIGHT & SANDBOX (ĐI DIRECT — ĐƯỢC PHÉP BẬT MITM BẮT TOKEN)
+# - Chỉ bật [Mitm] hostname cho đúng 4 tên miền này + BoxJs.
+# ------------------------------------------------------------------------------
+DOMAIN,testflight.apple.com
+DOMAIN-SUFFIX,beta.apple.com
+DOMAIN,sandbox.itunes.apple.com
+DOMAIN,mzstorekit-sb.itunes.apple.com
+DOMAIN,api.storekit-sandbox.itunes.apple.com
+
+# ------------------------------------------------------------------------------
+# NHÓM 3: MÁY CHỦ ĐĂNG NHẬP APPLE ID / OTP / 2FA & CDN TẢI APP
+# ⚠️ BẮT BUỘC ĐI DIRECT NGUYÊN BẢN SSL APPLE — TUYỆT ĐỐI KHÔNG ĐƯA VÀO [Mitm]!
+# Lý do: Apple dùng giao thức SRP-6a + ghim chứng chỉ cứng + phần cứng Anisette.
+# Nếu đưa vào MITM sẽ gây hỏng đăng nhập, kẹt OTP/2FA và giảm điểm Trust của nick.
+# ------------------------------------------------------------------------------
+DOMAIN,idmsa.apple.com
+DOMAIN,gsa.apple.com
+DOMAIN,appleid.apple.com
+DOMAIN,auth.apple.com
+DOMAIN,setup.icloud.com
+DOMAIN,iosapps.itunes.apple.com
+DOMAIN-SUFFIX,apps.apple.com
+DOMAIN-SUFFIX,itunes.apple.com
+DOMAIN-SUFFIX,mzstatic.com
+DOMAIN-SUFFIX,cdn-apple.com

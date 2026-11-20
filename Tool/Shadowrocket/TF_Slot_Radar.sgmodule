@@ -16,4 +16,4 @@ tf-radar.test = 127.0.0.1
 
 [Script]
 TF_Radar_Web = type=http-request,pattern=^http:\/\/tf-radar\.test(\/.*)?$,requires-body=1,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Slot_Radar.js,argument=RADAR_IDS={{{RADAR_IDS}}},timeout=25
-TF_Radar_Cron = type=cron,cronexp="*/30 * * * * *",script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Slot_Radar.js,argument=RADAR_IDS={{{RADAR_IDS}}},timeout=25
+TF_Radar_Cron = type=cron,cronexp="0 */2 * * * *",script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Slot_Radar.js,argument=RADAR_IDS={{{RADAR_IDS}}},timeout=25

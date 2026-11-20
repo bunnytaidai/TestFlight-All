@@ -1,27 +1,29 @@
 /**
  * TF_MultiAccount_Hub.js — Trung Tâm All-in-One 4 Tab (NobyDa + iRingo + API Replay Engine + StoreKit 1/2 RO + Telemetry Log)
- * Phiên bản: 2.3.0.0 — Tối ưu mạnh cho Loon 3.5.3 (.plugin + [Argument]) & Shadowrocket (.sgmodule) trên A9 iOS 15.8.8 (SSL Kill Switch 3)
+ * Phiên bản: 2.6.0.0 — Tối ưu mạnh cho Loon 3.5.3 (.plugin + [Argument]) & Shadowrocket (.sgmodule) trên A9 iOS 15.8.8 (SSL Kill Switch 3) — Auto-DC (dc=st ↔ dc=pv) + Round-Robin Keep-Alive + Copy/Import Vault chuẩn iOS Safari
  * Giao diện Web 4 Tab: http://tf-hub.test/ | Đồng bộ BoxJs: TF_HUB_*
  * - Tab 1: Quản lý Link TestFlight (Thêm lẻ/hàng loạt, Sửa, Xóa, Tự kiểm tra trạng thái OPEN/FULL/CLOSED, Xoay vòng nick tham gia)
- * - Tab 2: Kho Apple ID & API Replay Core (Bắt tối đa tham số phiên Anti-2FA; Xoay vòng Round-Robin tham gia/tải/cập nhật; Quét cập nhật & tự gửi POST /install phá vùng; MERGE/PIN; Lách iOS cũ modBuild)
+ * - Tab 2: Kho Apple ID & API Replay Core (Bắt đa điểm cuối trên testflight.apple.com; Xoay vòng Round-Robin giữ sống 24/7; Copy/Import Full JSON không ****; MERGE/PIN; Lách iOS cũ modBuild)
  * - Tab 3: Quản Lý Gói Đăng Ký Kiểm Thử Sandbox TestFlight (StoreKit 1 verifyReceipt + StoreKit 2 JWS — Chỉ đọc + Replay verifyReceipt kiểm tra hạn theo từng nick + Nút mở đúng Sandbox Subscriptions trên iOS 15.8.8 + Watchlist nhắc gia hạn)
  * - Tab 4: Bảng Log Kiểm Tra Trạng Thái Hoạt Động & Từng Hành Động (lọc OK/WARN/ERR, mã HTTP, độ trễ ms)
  */
 'use strict';
 
-const HUB_VERSION = '2.4.0.0';
+const HUB_VERSION = '2.6.0.0';
 const HUB_HOST = 'tf-hub.test';
 const TF_ORIGIN = 'https://testflight.apple.com';
+const TF_DC_POOL = ['st', 'pv'];
 
 const KEYS = {
   ACCOUNTS: 'TF_HUB_ACCOUNTS',             // { [uuid]: { id, alias, emailHint, xSessionId, xRequestId, xSessionDigest, xDsid, xAppleStoreFront, xAppleIMd, xAppleIMdM, xAppleIMdRinfo, deviceId, storefrontId, cookie, ua, status, fail401, lastSeen, lastPing, appCount, apps: [...] } }
   APPLIST: 'TF_HUB_APPLIST',               // { [appAdamId]: uuid }
   APP_BUILDS: 'TF_HUB_APP_BUILDS',         // { [uuid::adamId]: buildId } — phát hiện build mới để tự gửi /install
-  LINKS: 'TF_HUB_LINKS',                   // { [code]: { code, name, note, status, lastCheck, joinedBy: [] } }
+  LINKS: 'TF_HUB_LINKS',                   // { [code]: { code, name, note, status, lastCheck, joinedBy: [], joinedIds: [] } }
   SUBS: 'TF_HUB_SUBS',                     // { [ownerKey]: { [productId]: {...} } }
   RECEIPTS: 'TF_HUB_RECEIPTS',             // { [ownerKey]: { receiptData, password, ownerLabel, updatedAt } } — replay verifyReceipt kiểm tra hạn Sandbox
   WATCHLIST: 'TF_HUB_WATCHLIST',           // Array of "ownerKey::productId"
-  RR_IDX: 'TF_HUB_RR_IDX',                 // Con trỏ xoay vòng Round-Robin các nick Apple ID
+  RR_IDX: 'TF_HUB_RR_IDX',                 // Con trỏ xoay vòng Round-Robin tham gia link
+  KA_PTR: 'TF_HUB_KA_PTR',                 // Con trỏ xoay vòng Round-Robin giữ sống token liên tục
   MODE: 'TF_HUB_MODE',                     // 'MERGE' | 'PIN'
   ACTIVE_ID: 'TF_HUB_ACTIVE_ID',           // UUID đang ghim
   COUNTRY: 'TF_HUB_COUNTRY',               // 'US' | 'VN' | 'JP' | ... | 'AUTO'
@@ -30,7 +32,7 @@ const KEYS = {
   AUTO_JOIN: 'TF_HUB_AUTO_JOIN',           // 'true' | 'false'
   AUTO_INSTALL: 'TF_HUB_AUTO_INSTALL',     // 'true' | 'false'
   AUTO_UPDATE: 'TF_HUB_AUTO_UPDATE',       // 'true' | 'false' — phát hiện build mới tự gửi /install
-  KEEPALIVE_MIN: 'TF_HUB_KEEPALIVE_MIN',   // Phút (mặc định 30)
+  KEEPALIVE_MIN: 'TF_HUB_KEEPALIVE_MIN',   // Phút (mặc định 10 phút cho tỷ lệ live cao nhất)
   JOIN_CODES: 'TF_HUB_JOIN_CODES',         // Chuỗi mã đồng bộ BoxJs
   ACTION_LOGS: 'TF_HUB_ACTION_LOGS',       // Mảng JSON telemetry tối đa 60 dòng
 };
@@ -272,13 +274,26 @@ function mirrorHubAccountToLegacy(acc) {
   } catch (_) {}
 }
 
-function applyResponseSessionRefresh(acc, respHeaders) {
+function extractDcFromCookie(cookieStr) {
+  const m = String(cookieStr || '').match(/(?:^|;\s*)dc=([a-z0-9_-]+)/i);
+  return m ? m[1].toLowerCase() : '';
+}
+
+function setDcInCookie(cookieStr, dcVal) {
+  if (!dcVal) return cookieStr || '';
+  return mergeSetCookie(cookieStr || '', `dc=${String(dcVal).toLowerCase()}`);
+}
+
+function applyResponseSessionRefresh(acc, respHeaders, respStatus = 200) {
   if (!acc || !respHeaders || typeof respHeaders !== 'object') return false;
+  if (typeof respStatus === 'number' && (respStatus < 200 || respStatus >= 300)) return false;
   const rh = lowerHeaders(respHeaders);
   let dirty = false;
-  if (rh['x-session-id'] && rh['x-session-id'] !== acc.xSessionId) { acc.xSessionId = rh['x-session-id']; dirty = true; }
-  if (rh['x-session-digest'] && rh['x-session-digest'] !== acc.xSessionDigest) { acc.xSessionDigest = rh['x-session-digest']; dirty = true; }
-  if (rh['x-request-id'] && rh['x-request-id'] !== acc.xRequestId) { acc.xRequestId = rh['x-request-id']; dirty = true; }
+  let sessionRotated = false;
+  if (rh['x-session-id'] && rh['x-session-id'] !== acc.xSessionId) { acc.xSessionId = rh['x-session-id']; dirty = true; sessionRotated = true; }
+  if (rh['x-session-digest'] && rh['x-session-digest'] !== acc.xSessionDigest) { acc.xSessionDigest = rh['x-session-digest']; dirty = true; sessionRotated = true; }
+  // Chỉ cập nhật xRequestId khi Apple thật sự xoay cặp session mới (tránh ghi đè trace X-Request-Id)
+  if (sessionRotated && rh['x-request-id'] && rh['x-request-id'] !== acc.xRequestId) { acc.xRequestId = rh['x-request-id']; dirty = true; }
   if (rh['x-apple-i-md'] && rh['x-apple-i-md'] !== acc.xAppleIMd) { acc.xAppleIMd = rh['x-apple-i-md']; dirty = true; }
   if (rh['x-apple-i-md-m'] && rh['x-apple-i-md-m'] !== acc.xAppleIMdM) { acc.xAppleIMdM = rh['x-apple-i-md-m']; dirty = true; }
   if (rh['x-apple-amd'] && rh['x-apple-amd'] !== acc.xAppleAmd) { acc.xAppleAmd = rh['x-apple-amd']; dirty = true; }
@@ -305,6 +320,8 @@ function httpCall(method, opts) {
       timeout: isLoon ? (sec * 1000) : sec,
     };
     if (opts.body !== undefined) reqOpts.body = opts.body;
+    // Tắt cookie jar dùng chung giữa các nick để giữ đúng cụm DC (dc=st / dc=pv) của từng nick
+    reqOpts['auto-cookie'] = false;
     reqOpts['X-Surge-Skip-Scripting'] = true;
     reqOpts.headers['X-TF-Hub-Internal'] = '1';
 
@@ -322,6 +339,40 @@ function httpCall(method, opts) {
       });
     });
   });
+}
+
+async function tfApiCall(method, acc, opts) {
+  const savedDc = extractDcFromCookie(acc && acc.cookie);
+  const candidates = [];
+  if (savedDc) candidates.push(savedDc);
+  for (const dc of TF_DC_POOL) {
+    if (!candidates.includes(dc)) candidates.push(dc);
+  }
+  let lastResp = { error: 'No DC candidate', status: 0, headers: {}, body: '', durationMs: 0 };
+  for (let i = 0; i < candidates.length; i++) {
+    const dc = candidates[i];
+    const headers = Object.assign(
+      buildReplayHeaders(acc, opts.baseHeaders || {}, dc),
+      opts.extraHeaders || {}
+    );
+    const r = await httpCall(method, {
+      url: opts.url,
+      headers,
+      body: opts.body,
+      timeout: opts.timeout || 12,
+    });
+    lastResp = r;
+    if (r.status >= 200 && r.status < 300) {
+      const respDc = extractDcFromCookie(lowerHeaders(r.headers)['set-cookie'] || '') || dc;
+      acc.cookie = setDcInCookie(acc.cookie, respDc);
+      const rotated = applyResponseSessionRefresh(acc, r.headers, r.status);
+      return Object.assign(r, { usedDc: respDc, dcSwitched: i > 0, rotated });
+    }
+    if (r.status !== 401) {
+      return Object.assign(r, { usedDc: dc, dcSwitched: false, rotated: false });
+    }
+  }
+  return Object.assign(lastResp, { usedDc: candidates[candidates.length - 1] || '', dcSwitched: false, rotated: false });
 }
 
 function extractCodes(raw) {
@@ -396,7 +447,7 @@ function saveLinksMap(map) {
 function getConfig() {
   const rawMode = storeRead(KEYS.MODE, SCRIPT_ARGS.HUB_MODE || 'MERGE');
   const rawCountry = storeRead(KEYS.COUNTRY, SCRIPT_ARGS.HUB_COUNTRY || 'US');
-  const rawKeep = storeRead(KEYS.KEEPALIVE_MIN, SCRIPT_ARGS.HUB_KEEPALIVE || '30');
+  const rawKeep = storeRead(KEYS.KEEPALIVE_MIN, SCRIPT_ARGS.HUB_KEEPALIVE || '10');
   return {
     mode: String(rawMode).toUpperCase() === 'PIN' ? 'PIN' : 'MERGE',
     activeId: storeRead(KEYS.ACTIVE_ID, '').trim().toLowerCase(),
@@ -406,7 +457,7 @@ function getConfig() {
     autoJoin: readBool(KEYS.AUTO_JOIN, 'HUB_AUTO_JOIN', true),
     autoInstall: readBool(KEYS.AUTO_INSTALL, 'HUB_AUTO_INSTALL', true),
     autoUpdate: readBool(KEYS.AUTO_UPDATE, 'HUB_AUTO_UPDATE', true),
-    keepAliveMin: Math.max(5, Number(rawKeep) || 30),
+    keepAliveMin: Math.max(5, Number(rawKeep) || 10),
   };
 }
 
@@ -476,33 +527,42 @@ function upsertAccount(uuid, headersObj, extra = {}) {
   return accounts[id];
 }
 
-function buildReplayHeaders(acc, baseHeaders = {}) {
+function buildReplayHeaders(acc, baseHeaders = {}, overrideDc = '') {
   const h = lowerHeaders(baseHeaders);
+  const stripKeys = new Set([
+    'if-none-match', 'content-length', 'host', 'cookie',
+    'x-session-id', 'x-session-digest', 'x-request-id',
+    'x-dsid', 'x-apple-dsid', 'x-apple-store-front',
+    'x-apple-i-md', 'x-apple-i-md-m', 'x-apple-i-md-rinfo', 'x-apple-i-md-lu', 'x-apple-i-md-s',
+    'x-apple-amd', 'x-apple-amd-m', 'x-apple-amd-lu', 'x-apple-amd-s',
+    'x-apple-client-info', 'x-apple-i-timezone', 'user-agent', 'accept', 'accept-language',
+  ]);
   const out = {};
   for (const k of Object.keys(h)) {
-    if (k === 'if-none-match' || k === 'content-length' || k === 'host') continue;
+    if (stripKeys.has(k)) continue;
     out[k] = h[k];
   }
-  out['x-session-id'] = acc.xSessionId;
-  if (acc.xRequestId) out['x-request-id'] = acc.xRequestId;
-  out['x-session-digest'] = acc.xSessionDigest;
-  if (acc.xDsid) out['x-dsid'] = acc.xDsid;
-  if (acc.xAppleStoreFront) out['x-apple-store-front'] = acc.xAppleStoreFront;
-  if (acc.xAppleIMd) out['x-apple-i-md'] = acc.xAppleIMd;
-  if (acc.xAppleIMdM) out['x-apple-i-md-m'] = acc.xAppleIMdM;
-  if (acc.xAppleIMdRinfo) out['x-apple-i-md-rinfo'] = acc.xAppleIMdRinfo;
-  if (acc.xAppleIMdLu) out['x-apple-i-md-lu'] = acc.xAppleIMdLu;
-  if (acc.xAppleIMdS) out['x-apple-i-md-s'] = acc.xAppleIMdS;
-  if (acc.xAppleAmd) out['x-apple-amd'] = acc.xAppleAmd;
-  if (acc.xAppleAmdM) out['x-apple-amd-m'] = acc.xAppleAmdM;
-  if (acc.xAppleAmdLu) out['x-apple-amd-lu'] = acc.xAppleAmdLu;
-  if (acc.xAppleAmdS) out['x-apple-amd-s'] = acc.xAppleAmdS;
-  if (acc.xAppleClientInfo) out['x-apple-client-info'] = acc.xAppleClientInfo;
-  if (acc.xAppleITimeZone) out['x-apple-i-timezone'] = acc.xAppleITimeZone;
-  if (acc.cookie && !out['cookie']) out['cookie'] = acc.cookie;
-  out['user-agent'] = acc.ua || out['user-agent'] || 'TestFlight/3.5.1 (iPhone; iOS 15.8.8; Scale/2.00)';
-  if (!out['accept-language']) out['accept-language'] = acc.acceptLang || 'vi-VN,vi;q=0.9,en-US;q=0.8';
-  if (!out['accept']) out['accept'] = 'application/json';
+  out['X-Session-Id'] = acc.xSessionId;
+  if (acc.xRequestId) out['X-Request-Id'] = acc.xRequestId;
+  out['X-Session-Digest'] = acc.xSessionDigest;
+  if (acc.xDsid) out['X-Dsid'] = acc.xDsid;
+  if (acc.xAppleStoreFront) out['X-Apple-Store-Front'] = acc.xAppleStoreFront;
+  if (acc.xAppleIMd) out['X-Apple-I-MD'] = acc.xAppleIMd;
+  if (acc.xAppleIMdM) out['X-Apple-I-MD-M'] = acc.xAppleIMdM;
+  if (acc.xAppleIMdRinfo) out['X-Apple-I-MD-RINFO'] = acc.xAppleIMdRinfo;
+  if (acc.xAppleIMdLu) out['X-Apple-I-MD-LU'] = acc.xAppleIMdLu;
+  if (acc.xAppleIMdS) out['X-Apple-I-MD-S'] = acc.xAppleIMdS;
+  if (acc.xAppleAmd) out['X-Apple-AMD'] = acc.xAppleAmd;
+  if (acc.xAppleAmdM) out['X-Apple-AMD-M'] = acc.xAppleAmdM;
+  if (acc.xAppleAmdLu) out['X-Apple-AMD-LU'] = acc.xAppleAmdLu;
+  if (acc.xAppleAmdS) out['X-Apple-AMD-S'] = acc.xAppleAmdS;
+  if (acc.xAppleClientInfo) out['X-Apple-Client-Info'] = acc.xAppleClientInfo;
+  if (acc.xAppleITimeZone) out['X-Apple-I-TimeZone'] = acc.xAppleITimeZone;
+  const cookieVal = overrideDc ? setDcInCookie(acc.cookie, overrideDc) : (acc.cookie || 'dc=st');
+  if (cookieVal) out['Cookie'] = cookieVal;
+  out['User-Agent'] = acc.ua || h['user-agent'] || 'TestFlight/3.5.1 (iPhone; iOS 15.8.8; Scale/2.00)';
+  out['Accept-Language'] = h['accept-language'] || acc.acceptLang || 'vi-VN,vi;q=0.9,en-US;q=0.8';
+  out['Accept'] = h['accept'] || 'application/json';
   return out;
 }
 
@@ -580,28 +640,29 @@ async function sendInstallApi(acc, appId, buildId, countryCode) {
   const url = `${TF_ORIGIN}/v3/accounts/${acc.id}/apps/${appId}/builds/${buildId}/install`;
   const payload = { storefrontId: `${sf}-19,29` };
   if (acc.deviceId) payload.deviceId = acc.deviceId;
-  const r = await httpCall('POST', {
+  const r = await tfApiCall('POST', acc, {
     url,
-    headers: Object.assign(buildReplayHeaders(acc), { 'content-type': 'application/json' }),
+    extraHeaders: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
     timeout: 12,
   });
   const ok = r.status === 200;
-  recordAction(ok ? 'OK' : 'WARN', 'INSTALL_API', `${acc.alias} ➔ app ${appId}`, `build=${buildId}, SF=${sf}${r.error ? ' ' + r.error : ''}`, r.status, r.durationMs);
+  recordAction(ok ? 'OK' : 'WARN', 'INSTALL_API', `${acc.alias} ➔ app ${appId}`, `build=${buildId}, SF=${sf}${r.usedDc ? ', dc=' + r.usedDc : ''}${r.error ? ' ' + r.error : ''}`, r.status, r.durationMs);
   return { ok, status: r.status, appId, buildId, account: acc.alias, durationMs: r.durationMs };
 }
 
 async function pingAndSyncAccount(acc, cfg, autoTriggerUpdates = false) {
-  const url = `${TF_ORIGIN}/v3/accounts/${acc.id}/apps`;
-  const r = await httpCall('GET', { url, headers: buildReplayHeaders(acc), timeout: 12 });
   const accounts = syncLegacyAccountsIntoHub();
   const cur = accounts[acc.id] || acc;
+  const url = `${TF_ORIGIN}/v3/accounts/${cur.id}/apps`;
+  const r = await tfApiCall('GET', cur, { url, timeout: 12 });
 
   if (r.status === 200 && r.body) {
-    const rotated = applyResponseSessionRefresh(cur, r.headers);
-    // Ping phụ /v1/accounts/{id}/settings để gia hạn hoạt động phiên (Keep-Alive kép chống hết phiên/2FA)
-    const r2 = await httpCall('GET', { url: `${TF_ORIGIN}/v1/accounts/${acc.id}/settings`, headers: buildReplayHeaders(cur), timeout: 10 });
-    const rotated2 = r2.status === 200 ? applyResponseSessionRefresh(cur, r2.headers) : false;
+    const rotated = Boolean(r.rotated);
+    const dcNote = r.dcSwitched ? `, chuyển cụm dc=${r.usedDc}` : (r.usedDc ? `, dc=${r.usedDc}` : '');
+    // Ping phụ /v1/accounts/{id}/settings đúng cụm DC đã thắng để gia hạn phiên
+    const r2 = await tfApiCall('GET', cur, { url: `${TF_ORIGIN}/v1/accounts/${cur.id}/settings`, timeout: 10 });
+    const rotated2 = r2.status === 200 ? Boolean(r2.rotated) : false;
 
     let appsSummary = cur.apps || [];
     const buildMap = readJson(KEYS.APP_BUILDS, {});
@@ -623,7 +684,7 @@ async function pingAndSyncAccount(acc, cfg, autoTriggerUpdates = false) {
               buildVer: b.cfBundleVersion || '',
             };
             if (item.adamId && item.buildId) {
-              const bKey = `${acc.id}::${item.adamId}`;
+              const bKey = `${cur.id}::${item.adamId}`;
               if (buildMap[bKey] && buildMap[bKey] !== item.buildId) {
                 updatedApps.push(item);
               }
@@ -640,10 +701,10 @@ async function pingAndSyncAccount(acc, cfg, autoTriggerUpdates = false) {
     cur.lastPing = Date.now();
     cur.appCount = appsSummary.length;
     cur.apps = appsSummary;
-    accounts[acc.id] = cur;
+    accounts[cur.id] = cur;
     storeWrite(KEYS.ACCOUNTS, accounts);
     mirrorHubAccountToLegacy(cur);
-    recordAction('OK', 'PING_SYNC', cur.alias, `Sống (${appsSummary.length} apps, ${updatedApps.length} bản mới${rotated || rotated2 ? ', đã xoay token mới' : ''})`, 200, r.durationMs);
+    recordAction('OK', 'PING_SYNC', cur.alias, `Sống (${appsSummary.length} apps, ${updatedApps.length} bản mới${dcNote}${rotated || rotated2 ? ', đã xoay token mới' : ''})`, 200, r.durationMs);
 
     // Tự động gửi lệnh /install nếu phát hiện bản build cập nhật mới
     if (autoTriggerUpdates && cfg.autoUpdate && updatedApps.length > 0) {
@@ -652,7 +713,7 @@ async function pingAndSyncAccount(acc, cfg, autoTriggerUpdates = false) {
         notify('TF Hub — Bản Cập Nhật Mới 🔄', `${up.name} v${up.version}`, `${cur.alias}: đã gửi lệnh /install (build ${up.buildId}).`, 'itms-beta://');
       }
     }
-    return { id: acc.id, alias: cur.alias, ok: true, status: 200, appCount: appsSummary.length, updates: updatedApps.length };
+    return { id: cur.id, alias: cur.alias, ok: true, status: 200, dc: r.usedDc || '', appCount: appsSummary.length, updates: updatedApps.length };
   }
 
   if (r.status === 401) {
@@ -660,25 +721,37 @@ async function pingAndSyncAccount(acc, cfg, autoTriggerUpdates = false) {
     cur.lastPing = Date.now();
     if (cur.fail401 >= 2) {
       cur.status = 'EXPIRED_401';
-      notify('TF Hub — Token Hết Hạn (401)', cur.alias, `Mở app TestFlight bằng nick này 1 lần để Hub tự nạp lại token mới.`, `http://${HUB_HOST}/`);
+      notify('TF Hub — Token Hết Hạn (401)', cur.alias, `Cả 2 cụm Apple (st/pv) đều báo 401. Mở app TestFlight bằng nick này 1 lần để nạp lại.`, `http://${HUB_HOST}/`);
     }
-    accounts[acc.id] = cur;
+    accounts[cur.id] = cur;
     storeWrite(KEYS.ACCOUNTS, accounts);
-    recordAction('ERR', 'PING_SYNC', cur.alias, `Token 401 (${cur.fail401}/2) — cần nạp lại phiên`, 401, r.durationMs);
-    return { id: acc.id, alias: cur.alias, ok: false, status: 401 };
+    recordAction('ERR', 'PING_SYNC', cur.alias, `Token 401 cả 2 cụm st/pv (${cur.fail401}/2) — cần nạp lại phiên`, 401, r.durationMs);
+    return { id: cur.id, alias: cur.alias, ok: false, status: 401 };
   }
 
   recordAction('WARN', 'PING_SYNC', cur.alias, `Lỗi kết nối: ${r.error || 'HTTP ' + r.status}`, r.status, r.durationMs);
-  return { id: acc.id, alias: cur.alias, ok: false, status: r.status || 0 };
+  return { id: cur.id, alias: cur.alias, ok: false, status: r.status || 0 };
+}
+
+function sleepMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
 }
 
 async function pingAccounts(targetIds = null, force = false, autoTriggerUpdates = true) {
   const cfg = getConfig();
   const accounts = syncLegacyAccountsIntoHub();
-  const ids = Array.isArray(targetIds) && targetIds.length ? targetIds : Object.keys(accounts);
+  let ids = Array.isArray(targetIds) && targetIds.length ? targetIds : Object.keys(accounts);
+  // Xoay vòng Round-Robin con trỏ Keep-Alive để mỗi lượt cron rải đều thứ tự nick (tránh dồn tải 429)
+  if (!targetIds && ids.length > 1) {
+    const ptr = Number(storeRead(KEYS.KA_PTR, '0')) || 0;
+    const offset = ptr % ids.length;
+    ids = ids.slice(offset).concat(ids.slice(0, offset));
+    storeWrite(KEYS.KA_PTR, String((offset + 1) % ids.length));
+  }
   const results = [];
   const now = Date.now();
   const intervalMs = cfg.keepAliveMin * 60 * 1000;
+  let pingedCount = 0;
 
   for (const id of ids) {
     const acc = accounts[id];
@@ -687,7 +760,14 @@ async function pingAccounts(targetIds = null, force = false, autoTriggerUpdates 
       results.push({ id, alias: acc.alias, skipped: true, status: 200 });
       continue;
     }
+    // Chống timeout NetworkExtension khi chạy Cron với nhiều nick: dừng nhẹ sau 16s để nhường phần còn lại cho lượt Round-Robin kế tiếp
+    if (!force && pingedCount > 0 && Date.now() - now > 16000) {
+      results.push({ id, alias: acc.alias, deferred: true, status: 0 });
+      continue;
+    }
+    if (pingedCount > 0) await sleepMs(350);
     results.push(await pingAndSyncAccount(acc, cfg, autoTriggerUpdates));
+    pingedCount++;
   }
   return results;
 }
@@ -731,21 +811,34 @@ async function checkLinksStatus(targetCodes = null) {
   return out;
 }
 
-async function tryAcceptForAccount(acc, tfCode, cfg) {
+async function tryAcceptForAccount(acc, tfCode, cfg, sharedLinks = null) {
   const acceptUrl = `${TF_ORIGIN}/v3/accounts/${acc.id}/ru/${tfCode}/accept`;
-  const r = await httpCall('POST', {
+  const r = await tfApiCall('POST', acc, {
     url: acceptUrl,
-    headers: Object.assign(buildReplayHeaders(acc), { 'content-type': 'application/json' }),
+    extraHeaders: { 'Content-Type': 'application/json' },
     body: '{}',
     timeout: 12,
   });
   if (r.status === 200) {
-    recordAction('OK', 'ACCEPT_API', `${acc.alias} ➔ ${tfCode}`, 'Tham gia thành công!', 200, r.durationMs);
+    // Lưu lại cụm DC vừa thắng nếu có đổi DC
+    if (r.dcSwitched || r.rotated) {
+      const accounts = syncLegacyAccountsIntoHub();
+      if (accounts[acc.id]) {
+        accounts[acc.id].cookie = acc.cookie;
+        accounts[acc.id].status = 'ALIVE';
+        accounts[acc.id].fail401 = 0;
+        storeWrite(KEYS.ACCOUNTS, accounts);
+        mirrorHubAccountToLegacy(accounts[acc.id]);
+      }
+    }
+    recordAction('OK', 'ACCEPT_API', `${acc.alias} ➔ ${tfCode}`, `Tham gia thành công!${r.usedDc ? ' (dc=' + r.usedDc + ')' : ''}`, 200, r.durationMs);
     notify('TF Hub — Tham Gia Thành Công 🎉', `${acc.alias} ➔ ${tfCode}`, 'Bấm để mở TestFlight tải/cập nhật.', `itms-beta://testflight.apple.com/join/${tfCode}`);
-    const links = getLinksMap();
+    const links = sharedLinks || getLinksMap();
     if (links[tfCode]) {
       if (!Array.isArray(links[tfCode].joinedBy)) links[tfCode].joinedBy = [];
+      if (!Array.isArray(links[tfCode].joinedIds)) links[tfCode].joinedIds = [];
       if (!links[tfCode].joinedBy.includes(acc.alias)) links[tfCode].joinedBy.push(acc.alias);
+      if (!links[tfCode].joinedIds.includes(acc.id)) links[tfCode].joinedIds.push(acc.id);
       saveLinksMap(links);
     }
     if (cfg.autoInstall && r.body) {
@@ -801,12 +894,18 @@ async function batchJoinLinks({ codes = null, accountIds = null, skipPublicCheck
       continue;
     }
     for (const acc of targetAccs) {
-      // Bỏ qua nếu nick này đã từng tham gia thành công mã này
-      if (!skipPublicCheck && links[code] && Array.isArray(links[code].joinedBy) && links[code].joinedBy.includes(acc.alias)) {
+      // Bỏ qua nếu nick này đã từng tham gia thành công mã này (kiểm tra cả ID lẫn alias)
+      const alreadyJoined = Boolean(
+        links[code] && (
+          (Array.isArray(links[code].joinedIds) && links[code].joinedIds.includes(acc.id)) ||
+          (Array.isArray(links[code].joinedBy) && links[code].joinedBy.includes(acc.alias))
+        )
+      );
+      if (!skipPublicCheck && alreadyJoined) {
         results.push({ code, slotState, account: acc.alias, action: 'ALREADY_JOINED' });
         continue;
       }
-      const res = await tryAcceptForAccount(acc, code, cfg);
+      const res = await tryAcceptForAccount(acc, code, cfg, links);
       results.push({ code, slotState, account: acc.alias, status: res.status, ok: res.ok });
       if (res.ok && stopOnFirst) break;
     }
@@ -1014,6 +1113,16 @@ async function handleTestFlightRequest() {
 
   if (reqUuid && reqHeaders['x-session-id'] && reqHeaders['x-session-digest']) {
     upsertAccount(reqUuid, req.headers, extraMeta);
+  } else if (!reqUuid && (extraMeta.deviceId || extraMeta.storefrontId) && reqHeaders['x-session-id']) {
+    // Bắt bổ sung deviceId/storefrontId từ /v1/devices/apns hoặc /v1/session/authenticate
+    const curAccs = syncLegacyAccountsIntoHub();
+    const matched = Object.values(curAccs).find((a) => a && a.xSessionId === reqHeaders['x-session-id']);
+    if (matched) {
+      if (extraMeta.deviceId) matched.deviceId = extraMeta.deviceId;
+      if (extraMeta.storefrontId) matched.storefrontId = extraMeta.storefrontId;
+      storeWrite(KEYS.ACCOUNTS, curAccs);
+      mirrorHubAccountToLegacy(matched);
+    }
   }
 
   let modBody = req.body;
@@ -1056,7 +1165,7 @@ async function handleTestFlightRequest() {
 
     for (const id of aliveIds) {
       const acc = accounts[id];
-      const r = await httpCall('GET', { url: url.replace(UUID_RE, id), headers: buildReplayHeaders(acc, req.headers), timeout: 12 });
+      const r = await tfApiCall('GET', acc, { url: url.replace(UUID_RE, id), baseHeaders: req.headers, timeout: 12 });
       if (r.status === 200 && r.body) {
         try {
           const parsed = JSON.parse(r.body);
@@ -1066,6 +1175,7 @@ async function handleTestFlightRequest() {
           accounts[id].lastPing = Date.now();
           accounts[id].status = 'ALIVE';
           accounts[id].fail401 = 0;
+          accounts[id].cookie = acc.cookie;
 
           for (const item of list) {
             if (!item || item.previouslyTested === true) continue;
@@ -1124,19 +1234,23 @@ async function handleTestFlightRequest() {
 
 function handleHttpResponse() {
   const url = ($request && $request.url) || '';
+  const reqHeaders = lowerHeaders(($request && $request.headers) || {});
+  if (reqHeaders['x-tf-hub-internal'] === '1') return $done({});
+
   const bodyStr = ($response && $response.body) || '';
+  const respStatus = ($response && ($response.status || $response.statusCode)) || 0;
 
   if (SANDBOX_HOST_RE.test(url)) {
     parseSandboxSubscriptionsReadOnly(bodyStr, $request && $request.headers);
     return $done({});
   }
 
-  // Tự động cập nhật Set-Cookie / X-Session-Id mới từ mọi phản hồi Apple để phiên luôn sống (Anti-2FA)
+  // CHỈ cập nhật Set-Cookie / Session khi HTTP 2xx (tuyệt đối KHÔNG ghi đè trên 401/403/5xx để tránh nhiễm cụm dc=pv)
   const respUuidMatch = url.match(/\/accounts\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\//i);
-  if (respUuidMatch && $response && $response.headers) {
+  if (respUuidMatch && respStatus >= 200 && respStatus < 300 && $response && $response.headers) {
     const accounts = syncLegacyAccountsIntoHub();
     const acc = accounts[respUuidMatch[1].toLowerCase()];
-    if (acc && applyResponseSessionRefresh(acc, $response.headers)) {
+    if (acc && applyResponseSessionRefresh(acc, $response.headers, respStatus)) {
       storeWrite(KEYS.ACCOUNTS, accounts);
       mirrorHubAccountToLegacy(acc);
     }
@@ -1309,8 +1423,27 @@ function renderHtmlDashboard() {
       </div>
       <div class="row" style="margin-bottom:0">
         <button class="ok" onclick="saveCfg()">💾 Lưu Cấu Hình</button>
-        <button onclick="runAct('pingAll')">💓 Ping Nuôi & Quét Cập Nhật Toàn Bộ</button>
-        <button class="sec" onclick="exportVault()">📤 Xuất JSON Kho Nick (Hook/API)</button>
+        <button onclick="runAct('pingAll')">💓 Ping Nuôi & Quét Cập Nhật</button>
+        <button class="sec" onclick="exportVault()">📤 Xuất & Copy Full JSON</button>
+        <button class="sec" onclick="toggleImportBox()">📥 Nhập JSON (Loon ↔ SR)</button>
+      </div>
+      <div id="vaultDrawer" style="display:none;margin-top:10px">
+        <label id="vaultLabel">JSON Kho Nick đầy đủ (không có dấu **** — chạm nút bên dưới để sao chép chuẩn iOS Safari)</label>
+        <textarea id="vaultBox" style="min-height:110px"></textarea>
+        <div class="row" style="margin-top:6px;margin-bottom:0">
+          <button class="ok" id="vaultActionBtn" onclick="copyVaultBox()">📋 Chọn & Copy Ngay</button>
+          <button class="sec" onclick="document.getElementById('vaultDrawer').style.display='none'">✖ Đóng</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🛡️ Quy Trình Bắt & Nuôi Token Trust-First (4 Bước)</h2>
+      <div class="sub" style="margin-bottom:0;line-height:1.6">
+        <b>1.</b> Giữ nguyên SSL Apple cho <code>idmsa.apple.com</code> &amp; <code>gsa.apple.com</code> (tuyệt đối KHÔNG đưa vào MITM để tránh khóa nick / lỗi 2FA).<br>
+        <b>2.</b> Đăng nhập Apple ID bình thường (nhập mật khẩu + OTP/2FA trực tiếp với Apple) rồi mở app <b>TestFlight</b>.<br>
+        <b>3.</b> Hub tự bắt thụ động đa điểm cuối trên <code>testflight.apple.com</code> (<code>authenticate</code>, <code>apps</code>, <code>settings</code>, <code>ru</code>, <code>apns</code>).<br>
+        <b>4.</b> Cron xoay vòng Round-Robin mỗi 5–10 phút + tự đảo cụm <code>dc=st ↔ dc=pv</code> giữ toàn bộ nick XANH 24/7.
       </div>
     </div>
 
@@ -1451,7 +1584,8 @@ async function loadState(){
           + appsHtml
           + '<div class="row" style="margin-top:6px;margin-bottom:0">'
           + '<button onclick="pinAcc(\\''+a.id+'\\')">📌 Ghim</button>'
-          + '<button class="sec" onclick="runAct(\\'pingOne\\',{id:\\''+a.id+'\\'})">💓 Ping & Quét Cập Nhật</button>'
+          + '<button class="sec" onclick="runAct(\\'pingOne\\',{id:\\''+a.id+'\\'})">💓 Ping</button>'
+          + '<button class="sec" onclick="copyOneAcc(\\''+a.id+'\\')">📋 Copy</button>'
           + '<button class="sec" onclick="renameAcc(\\''+a.id+'\\',\\''+esc(a.alias).replace(/'/g,'')+'\\')">✏️</button>'
           + '<button class="err" onclick="delAcc(\\''+a.id+'\\')">🗑️</button>'
           + '</div></div>';
@@ -1524,13 +1658,81 @@ async function runAct(action, extra={}){
   await loadState();
   alert('Kết quả '+action+':\\n'+JSON.stringify(r.result, null, 2));
 }
+let LAST_STATE_ACCS = {};
+function copyTextReliable(txt){
+  const ta = document.createElement('textarea');
+  ta.value = txt;
+  ta.setAttribute('readonly', '');
+  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0.01;font-size:16px;';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try { ta.setSelectionRange(0, txt.length); } catch(_){}
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch(_){}
+  document.body.removeChild(ta);
+  if (!ok && navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(txt).then(()=>true).catch(()=>false);
+  }
+  return Promise.resolve(ok);
+}
 async function exportVault(){
   const r = await api('/api/accounts/export');
   const txt = JSON.stringify(r, null, 2);
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    try { await navigator.clipboard.writeText(txt); alert('Đã sao chép JSON kho '+Object.keys(r.accounts||{}).length+' nick Apple ID Anti-2FA vào Clipboard!'); return; } catch(_){}
-  }
-  prompt('Sao chép JSON Kho Nick Apple ID (dùng cho Hook JS / API / Packet Replay):', txt);
+  const drawer = document.getElementById('vaultDrawer');
+  const box = document.getElementById('vaultBox');
+  const btn = document.getElementById('vaultActionBtn');
+  document.getElementById('vaultLabel').textContent = 'JSON Kho Nick đầy đủ ('+Object.keys(r.accounts||{}).length+' nick — không có dấu ****):';
+  box.readOnly = true;
+  box.value = txt;
+  btn.textContent = '📋 Chọn & Copy Full JSON';
+  btn.onclick = copyVaultBox;
+  drawer.style.display = 'block';
+  const copied = await copyTextReliable(txt);
+  setStat(copied ? 'Đã copy Full JSON!' : 'Chạm nút Copy bên dưới');
+}
+async function copyVaultBox(){
+  const box = document.getElementById('vaultBox');
+  box.focus(); box.select();
+  try { box.setSelectionRange(0, box.value.length); } catch(_){}
+  const ok = await copyTextReliable(box.value);
+  alert(ok ? '✅ Đã sao chép trọn vẹn JSON Kho Nick (0 dấu ****) vào Clipboard!' : 'Hãy giữ chọn toàn bộ ô JSON phía trên rồi bấm Sao chép.');
+}
+async function copyOneAcc(id){
+  const r = await api('/api/accounts/export');
+  const acc = (r.accounts || {})[id];
+  if (!acc) return alert('Không tìm thấy nick trong kho.');
+  const txt = JSON.stringify({ accounts: { [id]: acc } }, null, 2);
+  const ok = await copyTextReliable(txt);
+  const drawer = document.getElementById('vaultDrawer');
+  const box = document.getElementById('vaultBox');
+  document.getElementById('vaultLabel').textContent = 'JSON riêng nick '+(acc.alias||id.slice(0,8))+' (0 dấu ****):';
+  box.readOnly = true; box.value = txt;
+  document.getElementById('vaultActionBtn').textContent = '📋 Chọn & Copy Ngay';
+  document.getElementById('vaultActionBtn').onclick = copyVaultBox;
+  drawer.style.display = 'block';
+  alert(ok ? '✅ Đã copy Full JSON nick '+(acc.alias||id.slice(0,8))+'!' : 'Ô JSON đã mở sẵn, bấm Copy Ngay.');
+}
+function toggleImportBox(){
+  const drawer = document.getElementById('vaultDrawer');
+  const box = document.getElementById('vaultBox');
+  const btn = document.getElementById('vaultActionBtn');
+  document.getElementById('vaultLabel').textContent = 'Dán JSON Kho Nick xuất từ Loon / Shadowrocket vào đây rồi bấm Nạp:';
+  box.readOnly = false; box.value = '';
+  btn.textContent = '📥 Nạp Vào Kho Ngay';
+  btn.onclick = importVaultNow;
+  drawer.style.display = 'block';
+}
+async function importVaultNow(){
+  const raw = document.getElementById('vaultBox').value.trim();
+  if (!raw) return alert('Hãy dán JSON Kho Nick vào ô trước.');
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch(e) { return alert('JSON không hợp lệ: ' + e.message); }
+  const payload = parsed.accounts ? parsed : { accounts: parsed };
+  const r = await api('/api/accounts/import', payload);
+  alert(r.ok ? '✅ Đã nạp '+r.imported+' nick vào kho (Tổng: '+r.total+' nick)!' : 'Lỗi nạp JSON');
+  document.getElementById('vaultDrawer').style.display = 'none';
+  await loadState();
 }
 loadState();
 </script>

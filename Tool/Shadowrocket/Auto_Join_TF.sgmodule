@@ -15,8 +15,8 @@ DOMAIN-SUFFIX,beta.apple.com,DIRECT
 # Tự động lấy Token (hỗ trợ cả URL có query ?platform=ios), thêm APP_ID và tự đổi nick Apple ID khi nhấn biểu tượng Tài khoản (/v1/devices)
 TF_Auto_Get_Params = type=http-request,pattern=^https?:\/\/testflight\.apple\.com\/(v\d\/accounts\/[0-9a-fA-F-]{36}\/(apps|settings)(\?.*)?$|join\/[A-Za-z0-9]+|v3\/accounts\/[0-9a-fA-F-]{36}\/ru\/.*|v1\/devices(\?.*)?$),script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/Auto_join_TF_Shadowrocket.js,argument=APP_ID={{{APP_ID}}},timeout=20
 
-# Chạy ngầm mỗi 10 giây (bảo vệ giới hạn 15MB RAM PacketTunnel trên iOS & chống khóa HTTP 429 của Apple)
-TF_Auto_Join_Cron = type=cron,cronexp="*/10 * * * * *",script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/Auto_join_TF_Shadowrocket.js,argument=APP_ID={{{APP_ID}}},wake-system=1,timeout=25
+# Chạy ngầm mỗi 1 phút (bảo vệ giới hạn 15MB RAM PacketTunnel trên iOS A9 & chống khóa HTTP 429 của Apple)
+TF_Auto_Join_Cron = type=cron,cronexp="0 */1 * * * *",script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/Shadowrocket/Auto_join_TF_Shadowrocket.js,argument=APP_ID={{{APP_ID}}},wake-system=1,timeout=25
 
 [MITM]
 hostname = %APPEND% testflight.apple.com

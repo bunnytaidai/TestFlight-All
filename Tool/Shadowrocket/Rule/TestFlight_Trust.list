@@ -1,0 +1,33 @@
+# ==============================================================================
+# RULE PHÂN LUỒNG TRUST-FIRST CHO TESTFLIGHT & APPLE ID (SHADOWROCKET v1.0.0.0)
+# Mục tiêu: Giữ nguyên SSL Apple khi đăng nhập mật khẩu/OTP/2FA — Chỉ MITM TestFlight.
+# ==============================================================================
+
+# NHÓM 1: BẢNG WEB NỘI BỘ (XỬ LÝ LOCAL 0ms)
+DOMAIN,tf-hub.test
+DOMAIN,tf-sub.test
+DOMAIN,tf-radar.test
+DOMAIN,tf-status.test
+DOMAIN,tf-link.test
+DOMAIN,tf-diag.test
+DOMAIN-SUFFIX,boxjs.com
+DOMAIN-SUFFIX,boxjs.net
+
+# NHÓM 2: TESTFLIGHT & SANDBOX (ĐI DIRECT — CHỈ BẬT MITM CHO NHÓM NÀY)
+DOMAIN,testflight.apple.com
+DOMAIN-SUFFIX,beta.apple.com
+DOMAIN,sandbox.itunes.apple.com
+DOMAIN,mzstorekit-sb.itunes.apple.com
+DOMAIN,api.storekit-sandbox.itunes.apple.com
+
+# NHÓM 3: APPLE ID AUTH / OTP / 2FA & CDN (BẮT BUỘC DIRECT NGUYÊN BẢN — KHÔNG MITM!)
+DOMAIN,idmsa.apple.com
+DOMAIN,gsa.apple.com
+DOMAIN,appleid.apple.com
+DOMAIN,auth.apple.com
+DOMAIN,setup.icloud.com
+DOMAIN,iosapps.itunes.apple.com
+DOMAIN-SUFFIX,apps.apple.com
+DOMAIN-SUFFIX,itunes.apple.com
+DOMAIN-SUFFIX,mzstatic.com
+DOMAIN-SUFFIX,cdn-apple.com

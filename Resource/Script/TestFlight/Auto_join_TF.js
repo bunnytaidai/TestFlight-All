@@ -775,16 +775,25 @@ function autoPostForAccount(ID, currentIds, account, pool, fallbackAppName) {
     if (account.xAppleAmdLu) header['X-Apple-AMD-LU'] = account.xAppleAmdLu;
     if (account.cookie) header['Cookie'] = account.cookie;
 
+    const extractDc = (ck) => {
+        const m = String(ck || '').match(/(?:^|;\s*)dc=([a-z0-9_-]+)/i);
+        return m ? m[1].toLowerCase() : '';
+    };
+    const buildHdrWithDc = (dc) => Object.assign({}, header, { Cookie: mergeSetCookie(account.cookie || '', `dc=${dc}`) });
+
     const refreshFromResp = (resp) => {
         if (!resp || !resp.headers) return;
+        const st = resp.status || resp.statusCode || 0;
+        if (st < 200 || st >= 300) return; // Tuyệt đối không ghi đè cookie/token trên phản hồi 401/403/5xx
         const rh = Object.fromEntries(Object.entries(resp.headers).map(([k, v]) => [k.toLowerCase(), v]));
         let dirty = false;
-        if (rh['x-session-id'] && rh['x-session-id'] !== account.session_id) { account.session_id = rh['x-session-id']; dirty = true; }
-        if (rh['x-session-digest'] && rh['x-session-digest'] !== account.session_digest) { account.session_digest = rh['x-session-digest']; dirty = true; }
-        if (rh['x-request-id'] && rh['x-request-id'] !== account.request_id) { account.request_id = rh['x-request-id']; dirty = true; }
+        let sessionRotated = false;
+        if (rh['x-session-id'] && rh['x-session-id'] !== account.session_id) { account.session_id = rh['x-session-id']; dirty = true; sessionRotated = true; }
+        if (rh['x-session-digest'] && rh['x-session-digest'] !== account.session_digest) { account.session_digest = rh['x-session-digest']; dirty = true; sessionRotated = true; }
+        if (sessionRotated && rh['x-request-id'] && rh['x-request-id'] !== account.request_id) { account.request_id = rh['x-request-id']; dirty = true; }
         if (rh['set-cookie']) {
-            account.cookie = mergeSetCookie(account.cookie, rh['set-cookie']);
-            dirty = true;
+            const merged = mergeSetCookie(account.cookie, rh['set-cookie']);
+            if (merged && merged !== account.cookie) { account.cookie = merged; dirty = true; }
         }
         if (dirty) {
             account.updatedAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
@@ -792,16 +801,37 @@ function autoPostForAccount(ID, currentIds, account, pool, fallbackAppName) {
         }
     };
 
+    const getWithDcFailover = (url, cb) => {
+        const savedDc = extractDc(account.cookie) || 'st';
+        const dcs = [savedDc, savedDc === 'st' ? 'pv' : 'st'];
+        const tryIdx = (idx) => {
+            const dc = dcs[idx];
+            const hdr = buildHdrWithDc(dc);
+            $httpClient.get({ url, headers: hdr, timeout: httpTimeout(12), 'auto-cookie': false }, (err, resp, data) => {
+                const st = resp ? (resp.status || resp.statusCode || 0) : 0;
+                if (!err && st === 401 && idx + 1 < dcs.length) {
+                    tryIdx(idx + 1);
+                    return;
+                }
+                if (!err && st >= 200 && st < 300) {
+                    header['Cookie'] = hdr['Cookie'];
+                    account.cookie = hdr['Cookie'];
+                }
+                cb(err, resp, data);
+            });
+        };
+        tryIdx(0);
+    };
+
     return new Promise((resolve) => {
-        $httpClient.get({ url: testurl + ID, headers: header, timeout: httpTimeout(12) }, (error, response, data) => {
+        getWithDcFailover(testurl + ID, (error, response, data) => {
             if (error) {
                 console.log(`[${PLATFORM}-TF] [${account.name}] ${ID} Lỗi mạng tạm thời: ${error} (Giữ nguyên APP_ID)`);
                 resolve();
                 return;
             }
-            refreshFromResp(response);
-
             const status = response ? (response.status || response.statusCode || 0) : 0;
+            if (status >= 200 && status < 300) refreshFromResp(response);
             if (status === 404) {
                 removeInvalidAppId(ID, currentIds, `Máy chủ Apple trả về HTTP 404 — Đã loại bỏ khỏi hàng đợi.`);
                 resolve();
@@ -868,9 +898,9 @@ function autoPostForAccount(ID, currentIds, account, pool, fallbackAppName) {
                 return;
             }
 
-            $httpClient.post({ url: testurl + ID + '/accept', headers: header, timeout: httpTimeout(12) }, (postErr, postResp, body) => {
-                refreshFromResp(postResp);
+            $httpClient.post({ url: testurl + ID + '/accept', headers: header, timeout: httpTimeout(12), 'auto-cookie': false }, (postErr, postResp, body) => {
                 const postStatus = postResp ? (postResp.status || postResp.statusCode || 0) : 0;
+                if (!postErr && postStatus >= 200 && postStatus < 300) refreshFromResp(postResp);
                 if (!postErr && postStatus >= 200 && postStatus < 300) {
                     let jsonBody = null;
                     try {

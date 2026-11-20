@@ -1,0 +1,28 @@
+#!name = 🔁 TF Keep-Alive Rotator v1.0.0.0 (Loon — Nuôi Xoay Vòng 24/7 + Auto-DC)
+#!desc = Plugin siêu nhẹ (RAM < 3MB) chuyên chạy xoay vòng Round-Robin mỗi 10 phút để giữ toàn bộ Token TestFlight trong kho TF_HUB_ACCOUNTS / TF_ACCOUNTS luôn sống (ALIVE 200), tự đảo cụm Apple Data Center (dc=st ↔ dc=pv) chống 401 ảo và giãn nhịp tránh 429. Có thể bật độc lập hoặc chạy song song cùng TF_MultiAccount_Hub.plugin.
+#!openUrl = http://tf-hub.test/
+#!author = Hely-T & Antigravity (v1.0.0.0)
+#!homepage = https://github.com/bunnytaidai/TestFlight-All
+#!icon = https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png
+#!version = 1.0.0.0
+#!date = 2026-11-20 20:05:00
+
+[Argument]
+BATCH = select, "2", "1", "3", "4", tag = Số nick nuôi mỗi lượt, desc = Mỗi lượt cron xoay vòng 2 nick giúp rải đều tải tránh 429
+JITTER_MS = select, "600", "300", "1000", "1500", tag = Giãn nhịp giữa các nick (ms), desc = Khoảng nghỉ giữa 2 nick trong cùng 1 lượt
+NOTIFY_ERR = switch, true, false, tag = Báo thông báo khi 401 cả 2 cụm, desc = Chỉ báo khi cả dc=st và dc=pv đều trả 401
+
+[Rule]
+DOMAIN, idmsa.apple.com, DIRECT
+DOMAIN, gsa.apple.com, DIRECT
+DOMAIN-KEYWORD, testflight.apple.com, DIRECT
+
+[Script]
+# 1. Bắt thụ động dự phòng khi dùng plugin này độc lập (KHÔNG sửa gói tin)
+http-request ^https?:\/\/testflight\.apple\.com\/v\d\/accounts\/[0-9a-fA-F-]{36}\/ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_KeepAlive_Rotator.js, timeout = 15, tag = TF Rotator Passive Capture
+
+# 2. Cron xoay vòng mỗi 10 phút (lệch 30 giây tránh đụng giờ cron 5 phút của Hub)
+cron "30 */10 * * * *" script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_KeepAlive_Rotator.js, timeout = 30, tag = TF Rotator Xoay Vòng Giữ Live, argument = [{BATCH},{JITTER_MS},{NOTIFY_ERR}]
+
+[Mitm]
+hostname = testflight.apple.com

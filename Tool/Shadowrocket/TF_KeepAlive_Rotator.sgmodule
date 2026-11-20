@@ -1,0 +1,21 @@
+#!name=🔁 TF Keep-Alive Rotator v1.0.0.0 (Shadowrocket — Nuôi Xoay Vòng 24/7 + Auto-DC)
+#!desc=Module siêu nhẹ (RAM < 3MB) chạy xoay vòng Round-Robin mỗi 10 phút giúp giữ sống liên tục toàn bộ Token TestFlight trong kho TF_HUB_ACCOUNTS / TF_ACCOUNTS, tự đảo cụm Data Center Apple (dc=st ↔ dc=pv) chống 401 ảo và giãn nhịp tránh 429. Bật song song được với TF_MultiAccount_Hub.sgmodule.
+#!openUrl=http://tf-hub.test/
+#!author=Hely-T & Antigravity (v1.0.0.0)
+#!homepage=https://github.com/bunnytaidai/TestFlight-All
+#!icon=https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png
+#!version=1.0.0.0
+
+[Rule]
+DOMAIN,idmsa.apple.com,DIRECT
+DOMAIN,gsa.apple.com,DIRECT
+DOMAIN-KEYWORD,testflight.apple.com,DIRECT
+
+[Script]
+TF_Rotator_Capture = type=http-request,pattern=^https?:\/\/testflight\.apple\.com\/v\d\/accounts\/[0-9a-fA-F-]{36}\/,timeout=15,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_KeepAlive_Rotator.js
+TF_Rotator_Cron_10m = type=cron,cronexp="30 */10 * * * *",wake-system=1,timeout=30,argument=BATCH=2&JITTER_MS=600&NOTIFY_ERR=true,script-path=https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_KeepAlive_Rotator.js
+
+[MITM]
+hostname = %APPEND% testflight.apple.com
+enable = true
+h2 = true

@@ -150,48 +150,63 @@ function fetchAppsForAccount(account) {
             return;
         }
         const url = `https://testflight.apple.com/v3/accounts/${account.key}/apps?platform=ios`;
-        const headers = {
+        const baseHeaders = {
             'X-Session-Id': account.session_id,
             'X-Session-Digest': account.session_digest || '',
             'X-Request-Id': account.request_id || '',
             'User-Agent': account.tf_ua || DEFAULT_UA,
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'X-TF-Hub-Internal': '1'
         };
-        if (account.xDsid) headers['X-Dsid'] = account.xDsid;
-        if (account.xAppleStoreFront) headers['X-Apple-Store-Front'] = account.xAppleStoreFront;
-        if (account.xAppleIMd) headers['X-Apple-I-MD'] = account.xAppleIMd;
-        if (account.xAppleIMdM) headers['X-Apple-I-MD-M'] = account.xAppleIMdM;
-        if (account.cookie) headers['Cookie'] = account.cookie;
-        $httpClient.get({ url, headers, timeout: PLATFORM === 'Loon' ? 12000 : 12 }, (err, resp, body) => {
-            if (err) {
-                resolve({ ok: false, status: 0, apps: [], reason: String(err) });
-                return;
-            }
-            const status = resp ? (resp.status || resp.statusCode || 0) : 0;
-            if (status === 401 || status === 403) {
-                resolve({ ok: false, status, apps: [], reason: `Token hết hạn (HTTP ${status}) — mở lại TestFlight 1 lần để làm mới` });
-                return;
-            }
-            if (status !== 200 || !body) {
-                resolve({ ok: false, status, apps: [], reason: `HTTP ${status}` });
-                return;
-            }
-            try {
-                const parsed = JSON.parse(body);
-                const list = Array.isArray(parsed && parsed.data) ? parsed.data : [];
-                const apps = list.map(item => ({
-                    appId: String(item.id || item.appAdamId || ''),
-                    name: item.name || item.bundleId || 'TestFlight App',
-                    bundleId: item.bundleId || '',
-                    version: (item.latestBuild && item.latestBuild.cfBundleShortVersion) || item.version || '',
-                    build: (item.latestBuild && item.latestBuild.cfBundleVersion) || '',
-                    expires: (item.latestBuild && item.latestBuild.expiration) || ''
-                }));
-                resolve({ ok: true, status: 200, apps, reason: 'OK' });
-            } catch (e) {
-                resolve({ ok: false, status, apps: [], reason: 'Lỗi đọc JSON Apple' });
-            }
-        });
+        if (account.xDsid) baseHeaders['X-Dsid'] = account.xDsid;
+        if (account.xAppleStoreFront) baseHeaders['X-Apple-Store-Front'] = account.xAppleStoreFront;
+        if (account.xAppleIMd) baseHeaders['X-Apple-I-MD'] = account.xAppleIMd;
+        if (account.xAppleIMdM) baseHeaders['X-Apple-I-MD-M'] = account.xAppleIMdM;
+
+        const m = String(account.cookie || '').match(/(?:^|;\s*)dc=([a-z0-9_-]+)/i);
+        const firstDc = m ? m[1].toLowerCase() : 'st';
+        const dcs = [firstDc, firstDc === 'st' ? 'pv' : 'st'];
+
+        const attempt = (idx) => {
+            const dc = dcs[idx];
+            const headers = Object.assign({}, baseHeaders, { 'Cookie': `dc=${dc}` });
+            $httpClient.get({ url, headers, timeout: PLATFORM === 'Loon' ? 12000 : 12, 'auto-cookie': false }, (err, resp, body) => {
+                if (err) {
+                    resolve({ ok: false, status: 0, apps: [], reason: String(err) });
+                    return;
+                }
+                const status = resp ? (resp.status || resp.statusCode || 0) : 0;
+                if (status === 401 && idx + 1 < dcs.length) {
+                    attempt(idx + 1);
+                    return;
+                }
+                if (status === 401 || status === 403) {
+                    resolve({ ok: false, status, apps: [], reason: `Token hết hạn (HTTP ${status}) — mở lại TestFlight 1 lần để làm mới` });
+                    return;
+                }
+                if (status !== 200 || !body) {
+                    resolve({ ok: false, status, apps: [], reason: `HTTP ${status}` });
+                    return;
+                }
+                account.cookie = `dc=${dc}`;
+                try {
+                    const parsed = JSON.parse(body);
+                    const list = Array.isArray(parsed && parsed.data) ? parsed.data : [];
+                    const apps = list.map(item => ({
+                        appId: String(item.id || item.appAdamId || ''),
+                        name: item.name || item.bundleId || 'TestFlight App',
+                        bundleId: item.bundleId || '',
+                        version: (item.latestBuild && item.latestBuild.cfBundleShortVersion) || item.version || '',
+                        build: (item.latestBuild && item.latestBuild.cfBundleVersion) || '',
+                        expires: (item.latestBuild && item.latestBuild.expiration) || ''
+                    }));
+                    resolve({ ok: true, status: 200, apps, reason: `OK (dc=${dc})` });
+                } catch (e) {
+                    resolve({ ok: false, status, apps: [], reason: 'Lỗi đọc JSON Apple' });
+                }
+            });
+        };
+        attempt(0);
     });
 }
 
@@ -497,8 +512,13 @@ function renderDashboardHtml(flashMsg) {
     <div class="actions" style="margin-top:0;margin-bottom:10px">
       <a class="btn ${autoSwitch ? 'primary' : ''}" href="/toggle-rotate">${autoSwitch ? '🔁 Tự động đảo nick: BẬT' : '⏸ Tự động đảo nick: TẮT'}</a>
       <a class="btn ok" href="/sync-all">🔄 Quét (GET) App TestFlight Tất Cả Nick</a>
-      <a class="btn" href="http://boxjs.com/">📦 Mở BoxJS</a>
-      <a class="btn" href="http://tf-radar.test/">📡 Radar Slot</a>
+      <button class="btn primary" type="button" onclick="copyPoolJson()">📋 Copy Full JSON (0 dấu ****)</button>
+      <a class="btn" href="http://tf-hub.test/">✈️ Mở TF Hub 4 Tab</a>
+      <a class="btn" href="http://boxjs.com/">📦 BoxJS</a>
+    </div>
+    <div id="copyBoxWrap" style="display:none;margin-bottom:10px">
+      <div class="muted" style="margin-bottom:4px">JSON gốc đầy đủ (KHÔNG che **** — dùng để chuyển giữa Loon &amp; Shadowrocket):</div>
+      <textarea id="copyPoolArea" readonly style="width:100%;min-height:96px;background:#0f172a;color:#e2e8f0;border:1px solid #475569;border-radius:8px;padding:8px;font-family:ui-monospace,monospace;font-size:11px;box-sizing:border-box"></textarea>
     </div>
     ${accountHtml}
   </div>
@@ -521,6 +541,24 @@ function renderDashboardHtml(flashMsg) {
     </form>
   </div>
 </div>
+<script>
+const FULL_POOL_JSON = ${JSON.stringify(JSON.stringify(pool || [], null, 2))};
+function copyPoolJson(){
+  const wrap = document.getElementById('copyBoxWrap');
+  const ta = document.getElementById('copyPoolArea');
+  wrap.style.display = 'block';
+  ta.value = FULL_POOL_JSON;
+  ta.focus(); ta.select();
+  try { ta.setSelectionRange(0, ta.value.length); } catch(_){}
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch(_){}
+  if (!ok && navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(ta.value).then(()=>alert('✅ Đã copy Full JSON kho nick (0 dấu ****)!')).catch(()=>alert('Ô JSON đã hiện sẵn phía trên — giữ chọn rồi bấm Sao chép.'));
+    return;
+  }
+  alert(ok ? '✅ Đã copy Full JSON kho nick (0 dấu ****) vào Clipboard!' : 'Ô JSON đã hiện sẵn phía trên — giữ chọn rồi bấm Sao chép.');
+}
+</script>
 </body>
 </html>`;
 }
