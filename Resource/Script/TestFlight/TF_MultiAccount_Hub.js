@@ -33,6 +33,7 @@ const KEYS = {
   AUTO_INSTALL: 'TF_HUB_AUTO_INSTALL',     // 'true' | 'false'
   AUTO_UPDATE: 'TF_HUB_AUTO_UPDATE',       // 'true' | 'false' — phát hiện build mới tự gửi /install
   KEEPALIVE_MIN: 'TF_HUB_KEEPALIVE_MIN',   // Phút (mặc định 10 phút cho tỷ lệ live cao nhất)
+  CRON_LAST_TS: 'TF_HUB_CRON_LAST_TS',     // Khóa chống bắn đúp 2 nhịp cron < 5s trên Shadowrocket/Loon
   JOIN_CODES: 'TF_HUB_JOIN_CODES',         // Chuỗi mã đồng bộ BoxJs
   ACTION_LOGS: 'TF_HUB_ACTION_LOGS',       // Mảng JSON telemetry tối đa 60 dòng
 };
@@ -1955,7 +1956,14 @@ async function main() {
     if (url.includes(`://${HUB_HOST}`)) return await handleWebUiRequest();
     return await handleTestFlightRequest();
   }
-  // Cron ngầm: Nuôi token + Quét cập nhật tự gửi /install + Săn & tham gia link + Kiểm tra Watchlist
+  // Cron ngầm: Chống bắn đúp 2 nhịp cron liên tiếp < 5s khi Shadowrocket/Loon vừa reconnect
+  const nowTs = Date.now();
+  const lastCronTs = Number(storeRead(KEYS.CRON_LAST_TS, '0')) || 0;
+  if (lastCronTs > 0 && nowTs - lastCronTs < 5000) {
+    return $done();
+  }
+  storeWrite(KEYS.CRON_LAST_TS, String(nowTs));
+  // Nuôi token + Quét cập nhật tự gửi /install + Săn & tham gia link + Kiểm tra Watchlist
   const cfg = getConfig();
   await pingAccounts(null, false, true);
   if (cfg.autoJoin && Object.keys(getLinksMap()).length > 0) {
