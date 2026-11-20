@@ -9,7 +9,7 @@
  */
 'use strict';
 
-const HUB_VERSION = '2.3.0.0';
+const HUB_VERSION = '2.4.0.0';
 const HUB_HOST = 'tf-hub.test';
 const TF_ORIGIN = 'https://testflight.apple.com';
 
@@ -162,6 +162,135 @@ function lowerHeaders(headers) {
   return out;
 }
 
+function mergeSetCookie(existingCookie, setCookieHeader) {
+  if (!setCookieHeader) return existingCookie || '';
+  const jar = {};
+  if (existingCookie) {
+    for (const part of String(existingCookie).split(';')) {
+      const idx = part.indexOf('=');
+      if (idx > 0) jar[part.slice(0, idx).trim()] = part.slice(idx + 1).trim();
+    }
+  }
+  const rawList = Array.isArray(setCookieHeader)
+    ? setCookieHeader
+    : String(setCookieHeader).split(/,(?=\s*[^;,=\s]+=[^;,]+)/);
+  for (const item of rawList) {
+    const first = String(item).split(';')[0] || '';
+    const idx = first.indexOf('=');
+    if (idx > 0) jar[first.slice(0, idx).trim()] = first.slice(idx + 1).trim();
+  }
+  return Object.entries(jar).map(([k, v]) => `${k}=${v}`).join('; ');
+}
+
+function syncLegacyAccountsIntoHub() {
+  const accounts = readJson(KEYS.ACCOUNTS, {});
+  let changed = false;
+  try {
+    const legacyPool = readJson('TF_ACCOUNTS', []);
+    if (Array.isArray(legacyPool)) {
+      for (const item of legacyPool) {
+        if (!item || !item.key || !UUID_RE.test(item.key)) continue;
+        const id = String(item.key).toLowerCase();
+        if (!item.session_id || !item.session_digest) continue;
+        const prev = accounts[id];
+        if (!prev || (!prev.xSessionId && item.session_id)) {
+          accounts[id] = Object.assign({
+            id,
+            alias: item.name || `Apple ID (${id.slice(0, 6)})`,
+            emailHint: '',
+            xSessionId: item.session_id,
+            xRequestId: item.request_id || '',
+            xSessionDigest: item.session_digest,
+            xDsid: item.xDsid || '',
+            xAppleStoreFront: item.xAppleStoreFront || '',
+            xAppleIMd: item.xAppleIMd || '',
+            xAppleIMdM: item.xAppleIMdM || '',
+            xAppleIMdRinfo: item.xAppleIMdRinfo || '',
+            xAppleIMdLu: item.xAppleIMdLu || '',
+            xAppleIMdS: item.xAppleIMdS || '',
+            xAppleAmd: item.xAppleAmd || '',
+            xAppleAmdM: item.xAppleAmdM || '',
+            xAppleAmdLu: item.xAppleAmdLu || '',
+            xAppleAmdS: item.xAppleAmdS || '',
+            xAppleClientInfo: item.xAppleClientInfo || '',
+            xAppleIClientTime: item.xAppleIClientTime || '',
+            xAppleITimeZone: item.xAppleITimeZone || '',
+            deviceId: item.deviceId || '',
+            storefrontId: item.storefrontId || '',
+            cookie: item.cookie || '',
+            ua: item.tf_ua || 'TestFlight/3.5.1 (iPhone; iOS 15.8.8; Scale/2.00)',
+            acceptLang: 'vi-VN,vi;q=0.9,en-US;q=0.8',
+            status: 'ALIVE',
+            fail401: 0,
+            lastSeen: Date.now(),
+            lastPing: 0,
+            appCount: 0,
+            apps: [],
+          }, prev || {});
+          changed = true;
+        }
+      }
+    }
+  } catch (_) {}
+  if (changed) storeWrite(KEYS.ACCOUNTS, accounts);
+  return accounts;
+}
+
+function mirrorHubAccountToLegacy(acc) {
+  if (!acc || !acc.id || !acc.xSessionId || !acc.xSessionDigest) return;
+  try {
+    const pool = readJson('TF_ACCOUNTS', []);
+    const arr = Array.isArray(pool) ? pool : [];
+    const idx = arr.findIndex((x) => x && String(x.key || '').toLowerCase() === acc.id);
+    const entry = {
+      key: acc.id,
+      name: acc.alias || `Apple ID (${acc.id.slice(0, 6)})`,
+      session_id: acc.xSessionId,
+      session_digest: acc.xSessionDigest,
+      request_id: acc.xRequestId || '',
+      tf_ua: acc.ua || 'TestFlight/3.5.1 (iPhone; iOS 15.8.8; Scale/2.00)',
+      xDsid: acc.xDsid || '',
+      xAppleStoreFront: acc.xAppleStoreFront || '',
+      xAppleIMd: acc.xAppleIMd || '',
+      xAppleIMdM: acc.xAppleIMdM || '',
+      xAppleIMdRinfo: acc.xAppleIMdRinfo || '',
+      xAppleAmd: acc.xAppleAmd || '',
+      xAppleAmdM: acc.xAppleAmdM || '',
+      xAppleAmdLu: acc.xAppleAmdLu || '',
+      cookie: acc.cookie || '',
+      joinedApps: (idx >= 0 && Array.isArray(arr[idx].joinedApps)) ? arr[idx].joinedApps : [],
+      updatedAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
+    };
+    if (idx >= 0) arr[idx] = Object.assign({}, arr[idx], entry);
+    else arr.push(entry);
+    storeWrite('TF_ACCOUNTS', arr);
+    storeWrite('key', acc.id);
+    storeWrite('session_id', acc.xSessionId);
+    storeWrite('session_digest', acc.xSessionDigest);
+    if (acc.xRequestId) storeWrite('request_id', acc.xRequestId);
+    if (acc.ua) storeWrite('tf_ua', acc.ua);
+  } catch (_) {}
+}
+
+function applyResponseSessionRefresh(acc, respHeaders) {
+  if (!acc || !respHeaders || typeof respHeaders !== 'object') return false;
+  const rh = lowerHeaders(respHeaders);
+  let dirty = false;
+  if (rh['x-session-id'] && rh['x-session-id'] !== acc.xSessionId) { acc.xSessionId = rh['x-session-id']; dirty = true; }
+  if (rh['x-session-digest'] && rh['x-session-digest'] !== acc.xSessionDigest) { acc.xSessionDigest = rh['x-session-digest']; dirty = true; }
+  if (rh['x-request-id'] && rh['x-request-id'] !== acc.xRequestId) { acc.xRequestId = rh['x-request-id']; dirty = true; }
+  if (rh['x-apple-i-md'] && rh['x-apple-i-md'] !== acc.xAppleIMd) { acc.xAppleIMd = rh['x-apple-i-md']; dirty = true; }
+  if (rh['x-apple-i-md-m'] && rh['x-apple-i-md-m'] !== acc.xAppleIMdM) { acc.xAppleIMdM = rh['x-apple-i-md-m']; dirty = true; }
+  if (rh['x-apple-amd'] && rh['x-apple-amd'] !== acc.xAppleAmd) { acc.xAppleAmd = rh['x-apple-amd']; dirty = true; }
+  if (rh['x-apple-amd-m'] && rh['x-apple-amd-m'] !== acc.xAppleAmdM) { acc.xAppleAmdM = rh['x-apple-amd-m']; dirty = true; }
+  if (rh['set-cookie']) {
+    const merged = mergeSetCookie(acc.cookie, rh['set-cookie']);
+    if (merged && merged !== acc.cookie) { acc.cookie = merged; dirty = true; }
+  }
+  if (dirty) acc.lastRotatedAt = Date.now();
+  return dirty;
+}
+
 function httpCall(method, opts) {
   const started = Date.now();
   return new Promise((resolve) => {
@@ -294,7 +423,7 @@ function upsertAccount(uuid, headersObj, extra = {}) {
   const xSessionDigest = h['x-session-digest'] || extra.xSessionDigest || '';
   if (!xSessionId || !xSessionDigest) return null;
 
-  const accounts = readJson(KEYS.ACCOUNTS, {});
+  const accounts = syncLegacyAccountsIntoHub();
   const isNew = !accounts[id];
   const prev = accounts[id] || {};
   const count = Object.keys(accounts).length + (isNew ? 1 : 0);
@@ -309,12 +438,21 @@ function upsertAccount(uuid, headersObj, extra = {}) {
     xSessionId,
     xRequestId: xRequestId || prev.xRequestId || '',
     xSessionDigest,
-    // Bắt tối đa tham số nhận diện thiết bị & phiên để replay nhất quán, hạn chế bị đá phiên/2FA lại
+    // Bắt tối đa tham số nhận diện thiết bị & phiên Anti-2FA/OTP để giữ sống phiên dài hạn
     xDsid: h['x-dsid'] || h['x-apple-dsid'] || extra.xDsid || prev.xDsid || '',
     xAppleStoreFront: h['x-apple-store-front'] || extra.xAppleStoreFront || prev.xAppleStoreFront || '',
     xAppleIMd: h['x-apple-i-md'] || extra.xAppleIMd || prev.xAppleIMd || '',
     xAppleIMdM: h['x-apple-i-md-m'] || extra.xAppleIMdM || prev.xAppleIMdM || '',
     xAppleIMdRinfo: h['x-apple-i-md-rinfo'] || extra.xAppleIMdRinfo || prev.xAppleIMdRinfo || '',
+    xAppleIMdLu: h['x-apple-i-md-lu'] || extra.xAppleIMdLu || prev.xAppleIMdLu || '',
+    xAppleIMdS: h['x-apple-i-md-s'] || extra.xAppleIMdS || prev.xAppleIMdS || '',
+    xAppleAmd: h['x-apple-amd'] || extra.xAppleAmd || prev.xAppleAmd || '',
+    xAppleAmdM: h['x-apple-amd-m'] || extra.xAppleAmdM || prev.xAppleAmdM || '',
+    xAppleAmdLu: h['x-apple-amd-lu'] || extra.xAppleAmdLu || prev.xAppleAmdLu || '',
+    xAppleAmdS: h['x-apple-amd-s'] || extra.xAppleAmdS || prev.xAppleAmdS || '',
+    xAppleClientInfo: h['x-apple-client-info'] || extra.xAppleClientInfo || prev.xAppleClientInfo || '',
+    xAppleIClientTime: h['x-apple-i-client-time'] || extra.xAppleIClientTime || prev.xAppleIClientTime || '',
+    xAppleITimeZone: h['x-apple-i-timezone'] || extra.xAppleITimeZone || prev.xAppleITimeZone || '',
     deviceId: extra.deviceId || prev.deviceId || '',
     storefrontId: extra.storefrontId || prev.storefrontId || '',
     cookie: h['cookie'] || extra.cookie || prev.cookie || '',
@@ -324,14 +462,16 @@ function upsertAccount(uuid, headersObj, extra = {}) {
     fail401: 0,
     lastSeen: Date.now(),
     lastPing: prev.lastPing || Date.now(),
+    lastRotatedAt: prev.lastRotatedAt || Date.now(),
     appCount: typeof extra.appCount === 'number' ? extra.appCount : (prev.appCount || 0),
     apps: Array.isArray(extra.apps) ? extra.apps : (prev.apps || []),
   };
 
   storeWrite(KEYS.ACCOUNTS, accounts);
+  mirrorHubAccountToLegacy(accounts[id]);
   if (isNew) {
-    recordAction('OK', 'AUTH_CAPTURE', accounts[id].alias, `Đã chụp nick mới (${id.slice(0, 8)}...) + bộ fingerprint đầy đủ`, 200, 0);
-    notify('TF Hub v2.1 — Đã Chụp Nick Mới', accounts[id].alias, `UUID: ${id}\nĐã lưu đủ Token & Device Fingerprint.`, `http://${HUB_HOST}/`);
+    recordAction('OK', 'AUTH_CAPTURE', accounts[id].alias, `Đã chụp nick mới (${id.slice(0, 8)}...) + bộ fingerprint Anti-2FA đầy đủ`, 200, 0);
+    notify(`TF Hub v${HUB_VERSION} — Đã Chụp Nick Mới`, accounts[id].alias, `UUID: ${id}\nĐã lưu đủ Token & Device Fingerprint Anti-2FA.`, `http://${HUB_HOST}/`);
   }
   return accounts[id];
 }
@@ -351,6 +491,14 @@ function buildReplayHeaders(acc, baseHeaders = {}) {
   if (acc.xAppleIMd) out['x-apple-i-md'] = acc.xAppleIMd;
   if (acc.xAppleIMdM) out['x-apple-i-md-m'] = acc.xAppleIMdM;
   if (acc.xAppleIMdRinfo) out['x-apple-i-md-rinfo'] = acc.xAppleIMdRinfo;
+  if (acc.xAppleIMdLu) out['x-apple-i-md-lu'] = acc.xAppleIMdLu;
+  if (acc.xAppleIMdS) out['x-apple-i-md-s'] = acc.xAppleIMdS;
+  if (acc.xAppleAmd) out['x-apple-amd'] = acc.xAppleAmd;
+  if (acc.xAppleAmdM) out['x-apple-amd-m'] = acc.xAppleAmdM;
+  if (acc.xAppleAmdLu) out['x-apple-amd-lu'] = acc.xAppleAmdLu;
+  if (acc.xAppleAmdS) out['x-apple-amd-s'] = acc.xAppleAmdS;
+  if (acc.xAppleClientInfo) out['x-apple-client-info'] = acc.xAppleClientInfo;
+  if (acc.xAppleITimeZone) out['x-apple-i-timezone'] = acc.xAppleITimeZone;
   if (acc.cookie && !out['cookie']) out['cookie'] = acc.cookie;
   out['user-agent'] = acc.ua || out['user-agent'] || 'TestFlight/3.5.1 (iPhone; iOS 15.8.8; Scale/2.00)';
   if (!out['accept-language']) out['accept-language'] = acc.acceptLang || 'vi-VN,vi;q=0.9,en-US;q=0.8';
@@ -446,10 +594,15 @@ async function sendInstallApi(acc, appId, buildId, countryCode) {
 async function pingAndSyncAccount(acc, cfg, autoTriggerUpdates = false) {
   const url = `${TF_ORIGIN}/v3/accounts/${acc.id}/apps`;
   const r = await httpCall('GET', { url, headers: buildReplayHeaders(acc), timeout: 12 });
-  const accounts = readJson(KEYS.ACCOUNTS, {});
+  const accounts = syncLegacyAccountsIntoHub();
   const cur = accounts[acc.id] || acc;
 
   if (r.status === 200 && r.body) {
+    const rotated = applyResponseSessionRefresh(cur, r.headers);
+    // Ping phụ /v1/accounts/{id}/settings để gia hạn hoạt động phiên (Keep-Alive kép chống hết phiên/2FA)
+    const r2 = await httpCall('GET', { url: `${TF_ORIGIN}/v1/accounts/${acc.id}/settings`, headers: buildReplayHeaders(cur), timeout: 10 });
+    const rotated2 = r2.status === 200 ? applyResponseSessionRefresh(cur, r2.headers) : false;
+
     let appsSummary = cur.apps || [];
     const buildMap = readJson(KEYS.APP_BUILDS, {});
     const updatedApps = [];
@@ -489,7 +642,8 @@ async function pingAndSyncAccount(acc, cfg, autoTriggerUpdates = false) {
     cur.apps = appsSummary;
     accounts[acc.id] = cur;
     storeWrite(KEYS.ACCOUNTS, accounts);
-    recordAction('OK', 'PING_SYNC', cur.alias, `Sống (${appsSummary.length} apps, ${updatedApps.length} bản mới)`, 200, r.durationMs);
+    mirrorHubAccountToLegacy(cur);
+    recordAction('OK', 'PING_SYNC', cur.alias, `Sống (${appsSummary.length} apps, ${updatedApps.length} bản mới${rotated || rotated2 ? ', đã xoay token mới' : ''})`, 200, r.durationMs);
 
     // Tự động gửi lệnh /install nếu phát hiện bản build cập nhật mới
     if (autoTriggerUpdates && cfg.autoUpdate && updatedApps.length > 0) {
@@ -520,7 +674,7 @@ async function pingAndSyncAccount(acc, cfg, autoTriggerUpdates = false) {
 
 async function pingAccounts(targetIds = null, force = false, autoTriggerUpdates = true) {
   const cfg = getConfig();
-  const accounts = readJson(KEYS.ACCOUNTS, {});
+  const accounts = syncLegacyAccountsIntoHub();
   const ids = Array.isArray(targetIds) && targetIds.length ? targetIds : Object.keys(accounts);
   const results = [];
   const now = Date.now();
@@ -612,7 +766,7 @@ async function batchJoinLinks({ codes = null, accountIds = null, skipPublicCheck
   const cfg = getConfig();
   const links = getLinksMap();
   const targetCodes = Array.isArray(codes) && codes.length ? codes : Object.keys(links);
-  const accounts = readJson(KEYS.ACCOUNTS, {});
+  const accounts = syncLegacyAccountsIntoHub();
   let targetAccs = Array.isArray(accountIds) && accountIds.length
     ? accountIds.map((id) => accounts[id]).filter(Boolean)
     : Object.values(accounts).filter((a) => a.status === 'ALIVE');
@@ -867,7 +1021,7 @@ async function handleTestFlightRequest() {
     modBody = patchStorefrontInBody(modBody, cfg.country);
   }
 
-  const accounts = readJson(KEYS.ACCOUNTS, {});
+  const accounts = syncLegacyAccountsIntoHub();
   const accountIds = Object.keys(accounts);
 
   // Chế độ PIN (kiểu iRingo — tiêm trọn bộ fingerprint nick đang ghim)
@@ -975,6 +1129,17 @@ function handleHttpResponse() {
   if (SANDBOX_HOST_RE.test(url)) {
     parseSandboxSubscriptionsReadOnly(bodyStr, $request && $request.headers);
     return $done({});
+  }
+
+  // Tự động cập nhật Set-Cookie / X-Session-Id mới từ mọi phản hồi Apple để phiên luôn sống (Anti-2FA)
+  const respUuidMatch = url.match(/\/accounts\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\//i);
+  if (respUuidMatch && $response && $response.headers) {
+    const accounts = syncLegacyAccountsIntoHub();
+    const acc = accounts[respUuidMatch[1].toLowerCase()];
+    if (acc && applyResponseSessionRefresh(acc, $response.headers)) {
+      storeWrite(KEYS.ACCOUNTS, accounts);
+      mirrorHubAccountToLegacy(acc);
+    }
   }
 
   if (!bodyStr || bodyStr[0] !== '{') return $done({});
@@ -1145,6 +1310,7 @@ function renderHtmlDashboard() {
       <div class="row" style="margin-bottom:0">
         <button class="ok" onclick="saveCfg()">💾 Lưu Cấu Hình</button>
         <button onclick="runAct('pingAll')">💓 Ping Nuôi & Quét Cập Nhật Toàn Bộ</button>
+        <button class="sec" onclick="exportVault()">📤 Xuất JSON Kho Nick (Hook/API)</button>
       </div>
     </div>
 
@@ -1358,6 +1524,14 @@ async function runAct(action, extra={}){
   await loadState();
   alert('Kết quả '+action+':\\n'+JSON.stringify(r.result, null, 2));
 }
+async function exportVault(){
+  const r = await api('/api/accounts/export');
+  const txt = JSON.stringify(r, null, 2);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try { await navigator.clipboard.writeText(txt); alert('Đã sao chép JSON kho '+Object.keys(r.accounts||{}).length+' nick Apple ID Anti-2FA vào Clipboard!'); return; } catch(_){}
+  }
+  prompt('Sao chép JSON Kho Nick Apple ID (dùng cho Hook JS / API / Packet Replay):', txt);
+}
 loadState();
 </script>
 </body>
@@ -1376,25 +1550,53 @@ async function handleWebUiRequest() {
   if (path === '/api/state') {
     return jsonResp({
       version: HUB_VERSION,
+      platform: isLoon ? 'Loon' : (typeof $rocket !== 'undefined' ? 'Shadowrocket' : 'Surge/Other'),
       config: getConfig(),
       links: getLinksMap(),
-      accounts: readJson(KEYS.ACCOUNTS, {}),
+      accounts: syncLegacyAccountsIntoHub(),
       subs: readJson(KEYS.SUBS, {}),
       watchlist: readJson(KEYS.WATCHLIST, []),
       logs: readJson(KEYS.ACTION_LOGS, []),
     });
   }
 
+  if (path === '/api/accounts/export') {
+    return jsonResp({
+      ok: true,
+      exportedAt: new Date().toISOString(),
+      version: HUB_VERSION,
+      accounts: syncLegacyAccountsIntoHub(),
+    });
+  }
+
+  if (path === '/api/accounts/import') {
+    const incoming = body && body.accounts && typeof body.accounts === 'object' ? body.accounts : {};
+    const cur = syncLegacyAccountsIntoHub();
+    let imported = 0;
+    for (const [k, v] of Object.entries(incoming)) {
+      if (!v || !v.xSessionId || !v.xSessionDigest) continue;
+      const id = String(v.id || k || '').toLowerCase();
+      if (!UUID_RE.test(id)) continue;
+      cur[id] = Object.assign({}, cur[id] || {}, v, { id, status: 'ALIVE', fail401: 0, lastSeen: Date.now() });
+      mirrorHubAccountToLegacy(cur[id]);
+      imported++;
+    }
+    storeWrite(KEYS.ACCOUNTS, cur);
+    recordAction('OK', 'VAULT_IMPORT', `${imported} nick`, 'Đã nạp cấu hình kho nick Anti-2FA từ JSON', 200, 0);
+    return jsonResp({ ok: true, imported, total: Object.keys(cur).length });
+  }
+
   if (path === '/api/config') {
     if (body.mode) storeWrite(KEYS.MODE, body.mode === 'PIN' ? 'PIN' : 'MERGE');
-    if (body.country) storeWrite(KEYS.COUNTRY, String(body.country).toUpperCase());
+    const cleanCountry = String(body.country || '').trim().toUpperCase();
+    if (cleanCountry) storeWrite(KEYS.COUNTRY, cleanCountry);
     if (typeof body.universal === 'boolean') storeWrite(KEYS.UNIVERSAL, String(body.universal));
     if (typeof body.alwaysInstall === 'boolean') storeWrite(KEYS.ALWAYS_INSTALL, String(body.alwaysInstall));
     if (typeof body.autoJoin === 'boolean') storeWrite(KEYS.AUTO_JOIN, String(body.autoJoin));
     if (typeof body.autoInstall === 'boolean') storeWrite(KEYS.AUTO_INSTALL, String(body.autoInstall));
     if (typeof body.autoUpdate === 'boolean') storeWrite(KEYS.AUTO_UPDATE, String(body.autoUpdate));
     if (body.keepAliveMin) storeWrite(KEYS.KEEPALIVE_MIN, String(Math.max(5, Number(body.keepAliveMin) || 30)));
-    recordAction('OK', 'CONFIG_SAVE', 'Web UI', `mode=${body.mode}, country=${body.country}, keepAlive=${body.keepAliveMin}m`, 200, 0);
+    recordAction('OK', 'CONFIG_SAVE', 'Web UI', `mode=${body.mode}, country=${cleanCountry || getConfig().country}, keepAlive=${body.keepAliveMin}m`, 200, 0);
     return jsonResp({ ok: true });
   }
 

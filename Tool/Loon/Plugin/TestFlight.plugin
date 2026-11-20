@@ -1,31 +1,26 @@
-#!name = TestFlight Đa Tài Khoản, Mở Khóa Thiết Bị & Tải Nhanh CDN (Loon)
-#!desc = Lưu giữ phiên nhiều tài khoản Apple ID, tự động đổi nick khi bấm biểu tượng Tài khoản (/v1/devices), mở khóa tương thích iOS/iPadOS/macOS và tối ưu tải CDN.
+#!name = TestFlight Đa Tài Khoản Mở Khóa Thiết Bị & Tải Nhanh CDN v5.4.0.0 (Chuẩn Loon 3.5+)
+#!desc = Lưu giữ phiên nhiều tài khoản Apple ID, tự động đổi nick khi chạm biểu tượng Tài khoản (/v1/devices), mở khóa tương thích iOS/iPadOS/macOS và tối ưu tải CDN trên Loon 3.5+.
 #!openUrl = https://testflight.apple.com/join/LPQmtkUs
-#!author = VirgilClyne & DecoAri & Hely-T (v5.0.0.0)
+#!author = VirgilClyne & DecoAri & Hely-T (v5.4.0.0)
 #!homepage = https://github.com/bunnytaidai/TestFlight-All
 #!icon = https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png
-#!select = Switch, true, false
-#!select = CountryCode, US, VN, AUTO, SG, JP, TW, GB
-#!select = MultiAccount, true, false
-#!select = Universal, true, false
-#!date = 2026-11-15 23:20:00
+#!date = 2026-11-20 15:20:00
+
+[Argument]
+Switch = switch, true, false, tag = Bật mở khóa TestFlight, desc = Bật/tắt toàn bộ module
+CountryCode = select, "US", "VN", "AUTO", "SG", "JP", "TW", "GB", tag = Mã vùng Storefront, desc = Ghi đè mã vùng quốc gia khi cài app
+MultiAccount = switch, true, false, tag = Bật đa tài khoản, desc = Giữ phiên nhiều nick Apple ID
+Universal = switch, true, false, tag = Mở khóa thiết bị (Universal), desc = Lách kiểm tra tương thích iOS/iPadOS/macOS
 
 [Rule]
 DOMAIN-KEYWORD, testflight.apple.com, DIRECT
 DOMAIN-SUFFIX, beta.apple.com, DIRECT
 
 [Script]
-# Tự động đổi nick Apple ID khi chạm biểu tượng Tài khoản góc phải trong ứng dụng TestFlight
-http-request ^https?:\/\/testflight\.apple\.com\/v1\/devices(\?.*)?$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/boxjs/switcher/box.switcher.js, timeout = 25, tag = Đổi Nick Apple ID (BoxSwitcher)
-
-# Giữ phiên Đa Tài Khoản Apple ID & mở khóa vùng Storefront
-http-request ^https?:\/\/testflight\.apple\.com\/v\d\/(session\/authenticate|properties\/testflight|accounts\/.*|messages\/.*|apps\/.*)$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/FileFastClick/TestFlight.request.viethoa.js, requires-body = true, timeout = 30, tag = TestFlight Multi-Account Request, argument = [Switch, CountryCode, MultiAccount, Universal]
-
-# Mở khóa giới hạn thiết bị (Universal) & đồng bộ bộ đệm Apple ID
-http-response ^https?:\/\/testflight\.apple\.com\/v\d\/(session\/authenticate|accounts\/.*\/apps.*)$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/FileFastClick/TestFlight.response.viethoa.js, requires-body = true, timeout = 30, tag = TestFlight Multi-Account Response, argument = [Switch, CountryCode, MultiAccount, Universal]
-
-# Tải ứng dụng TestFlight tốc độ cao từ Apple CDN
-http-request ^https?:\/\/testflight\.apple\.com\/v3\/accounts\/.*\/apps\/.*\/builds\/.*\/install$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Download.js, requires-body = true, timeout = 25, tag = TestFlight Tải Nhanh CDN, argument = [CountryCode]
+http-request ^https?:\/\/testflight\.apple\.com\/v1\/devices(\?.*)?$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/boxjs/switcher/box.switcher.js, timeout = 25, tag = Đổi Nick Apple ID BoxSwitcher
+http-request ^https?:\/\/testflight\.apple\.com\/v\d\/(session\/authenticate|properties\/testflight|accounts\/.*|messages\/.*|apps\/.*)$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/FileFastClick/TestFlight.request.viethoa.js, requires-body = true, max-size = 524288, timeout = 30, tag = TestFlight Multi-Account Request, argument = [{Switch},{CountryCode},{MultiAccount},{Universal}]
+http-response ^https?:\/\/testflight\.apple\.com\/v\d\/(session\/authenticate|accounts\/.*\/apps.*)$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Tool/FileFastClick/TestFlight.response.viethoa.js, requires-body = true, max-size = 524288, timeout = 30, tag = TestFlight Multi-Account Response, argument = [{Switch},{CountryCode},{MultiAccount},{Universal}]
+http-request ^https?:\/\/testflight\.apple\.com\/v3\/accounts\/.*\/apps\/.*\/builds\/.*\/install$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Download.js, requires-body = true, max-size = 524288, timeout = 25, tag = TestFlight Tải Nhanh CDN, argument = [{CountryCode}]
 
 [Mitm]
 hostname = testflight.apple.com

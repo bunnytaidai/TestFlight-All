@@ -1,11 +1,13 @@
-#!name = Giám Sát Hạn 90 Ngày & Bản Cập Nhật TestFlight (Chỉ Đọc — tf-status.test)
-#!desc = Theo dõi hạn dùng 90 ngày của toàn bộ ứng dụng Beta trong TestFlight ở chế độ Chỉ Đọc (Read-Only), báo ngay khi có Build mới hoặc sắp hết hạn (<= 7 ngày). Xem bảng đếm ngược tại http://tf-status.test/
+#!name = Giám Sát Hạn 90 Ngày & Build Mới TestFlight v5.4.0.0 (Chuẩn Loon 3.5+ — tf-status.test)
+#!desc = Theo dõi hạn dùng 90 ngày của toàn bộ ứng dụng Beta ở chế độ Chỉ Đọc (Read-Only), báo ngay khi có Build mới hoặc sắp hết hạn. Xem bảng đếm ngược tại http://tf-status.test/
 #!openUrl = http://tf-status.test/
-#!author = Hely-T & Antigravity (v5.0.0.0)
+#!author = Hely-T & Antigravity (v5.4.0.0)
 #!homepage = https://github.com/bunnytaidai/TestFlight-All
 #!icon = https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png
-#!select = WarnDays, 7, 3, 14, 30
-#!date = 2026-11-15 23:20:00
+#!date = 2026-11-20 15:20:00
+
+[Argument]
+WarnDays = select, "7", "3", "14", "30", tag = Ngưỡng cảnh báo (ngày), desc = Báo thông báo khi hạn dùng còn <= số ngày này
 
 [General]
 force-http-engine-hosts = tf-status.test
@@ -18,14 +20,9 @@ DOMAIN-KEYWORD, testflight.apple.com, DIRECT
 tf-status.test = 127.0.0.1
 
 [Script]
-# Trang Web Bảng Đếm Ngược Hạn 90 Ngày tại http://tf-status.test/
-http-request ^http:\/\/tf-status\.test(\/.*)?$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Expiry_Monitor.js, timeout = 20, tag = Bảng Hạn 90 Ngày (tf-status.test), argument = [WarnDays]
-
-# Quan sát chỉ đọc danh sách ứng dụng khi mở TestFlight (không chỉnh sửa gói tin gốc của Apple)
-http-response ^https?:\/\/testflight\.apple\.com\/v\d\/accounts\/[0-9a-fA-F-]{36}\/apps(\?.*)?$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Expiry_Monitor.js, requires-body = true, timeout = 20, tag = Đọc Hạn Dùng & Build Mới TestFlight, argument = [WarnDays]
-
-# Kiểm tra định kỳ lúc 09:00 sáng mỗi ngày ngay cả khi không mở app TestFlight
-cron "0 0 9 * * *" script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Expiry_Monitor.js, timeout = 20, tag = Báo Cáo Hạn TestFlight Hàng Ngày, argument = [WarnDays]
+http-request ^http:\/\/tf-status\.test(\/.*)?$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Expiry_Monitor.js, timeout = 20, tag = Bảng Hạn 90 Ngày Beta, argument = [{WarnDays}]
+http-response ^https?:\/\/testflight\.apple\.com\/v\d\/accounts\/[0-9a-fA-F-]{36}\/apps(\?.*)?$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Expiry_Monitor.js, requires-body = true, max-size = 524288, timeout = 20, tag = Đọc Hạn Dùng TestFlight RO, argument = [{WarnDays}]
+cron "0 0 9 * * *" script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Expiry_Monitor.js, timeout = 20, tag = Báo Cáo Hạn TestFlight Sáng, argument = [{WarnDays}]
 
 [Mitm]
 hostname = testflight.apple.com

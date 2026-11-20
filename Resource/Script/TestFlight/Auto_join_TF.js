@@ -41,6 +41,30 @@ function getPlatformName() {
 }
 
 const PLATFORM = getPlatformName();
+const IS_LOON = PLATFORM === 'Loon';
+
+function httpTimeout(sec) {
+    const s = Math.max(3, Number(sec) || 10);
+    return IS_LOON ? s * 1000 : s;
+}
+
+function mergeSetCookie(existingCookie, setCookieHeader) {
+    if (!setCookieHeader) return existingCookie || '';
+    const jar = {};
+    if (existingCookie) {
+        for (const part of String(existingCookie).split(';')) {
+            const idx = part.indexOf('=');
+            if (idx > 0) jar[part.slice(0, idx).trim()] = part.slice(idx + 1).trim();
+        }
+    }
+    const rawList = Array.isArray(setCookieHeader) ? setCookieHeader : String(setCookieHeader).split(/,(?=\s*[^;,=\s]+=[^;,]+)/);
+    for (const item of rawList) {
+        const first = String(item).split(';')[0] || '';
+        const idx = first.indexOf('=');
+        if (idx > 0) jar[first.slice(0, idx).trim()] = first.slice(idx + 1).trim();
+    }
+    return Object.entries(jar).map(([k, v]) => `${k}=${v}`).join('; ');
+}
 
 function readStore(key, fallback = null) {
     if (typeof $persistentStore !== 'undefined') {
@@ -243,7 +267,7 @@ function checkPublicBetaSlot(code) {
                     'Accept-Language': 'en-US,en;q=0.9',
                     'User-Agent': PUBLIC_WEB_UA
                 },
-                timeout: 8
+                timeout: httpTimeout(10)
             },
             (err, resp, body) => {
                 if (err) {
@@ -332,7 +356,7 @@ function syncBoxJsSession(accountObj) {
     }
 }
 
-function upsertAccountToken({ key, session_id, session_digest, request_id, tf_ua }) {
+function upsertAccountToken({ key, session_id, session_digest, request_id, tf_ua, extraHeaders = {} }) {
     if (!key || !session_id || !session_digest || !request_id) return null;
 
     writeStore(session_id, 'session_id');
@@ -345,6 +369,7 @@ function upsertAccountToken({ key, session_id, session_digest, request_id, tf_ua
     let idx = pool.findIndex(acc => acc && acc.key === key);
     const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 19);
     let isChanged = false;
+    const eh = extraHeaders || {};
 
     if (idx === -1) {
         isChanged = true;
@@ -355,6 +380,15 @@ function upsertAccountToken({ key, session_id, session_digest, request_id, tf_ua
             session_digest,
             request_id,
             tf_ua: tf_ua || DEFAULT_UA,
+            xDsid: eh['x-dsid'] || eh['x-apple-dsid'] || '',
+            xAppleStoreFront: eh['x-apple-store-front'] || '',
+            xAppleIMd: eh['x-apple-i-md'] || '',
+            xAppleIMdM: eh['x-apple-i-md-m'] || '',
+            xAppleIMdRinfo: eh['x-apple-i-md-rinfo'] || '',
+            xAppleAmd: eh['x-apple-amd'] || '',
+            xAppleAmdM: eh['x-apple-amd-m'] || '',
+            xAppleAmdLu: eh['x-apple-amd-lu'] || '',
+            cookie: eh['cookie'] || '',
             joinedApps: [],
             updatedAt: nowStr
         };
@@ -368,6 +402,15 @@ function upsertAccountToken({ key, session_id, session_digest, request_id, tf_ua
         pool[idx].session_digest = session_digest;
         pool[idx].request_id = request_id;
         pool[idx].tf_ua = tf_ua || pool[idx].tf_ua || DEFAULT_UA;
+        if (eh['x-dsid'] || eh['x-apple-dsid']) pool[idx].xDsid = eh['x-dsid'] || eh['x-apple-dsid'];
+        if (eh['x-apple-store-front']) pool[idx].xAppleStoreFront = eh['x-apple-store-front'];
+        if (eh['x-apple-i-md']) pool[idx].xAppleIMd = eh['x-apple-i-md'];
+        if (eh['x-apple-i-md-m']) pool[idx].xAppleIMdM = eh['x-apple-i-md-m'];
+        if (eh['x-apple-i-md-rinfo']) pool[idx].xAppleIMdRinfo = eh['x-apple-i-md-rinfo'];
+        if (eh['x-apple-amd']) pool[idx].xAppleAmd = eh['x-apple-amd'];
+        if (eh['x-apple-amd-m']) pool[idx].xAppleAmdM = eh['x-apple-amd-m'];
+        if (eh['x-apple-amd-lu']) pool[idx].xAppleAmdLu = eh['x-apple-amd-lu'];
+        if (eh['cookie']) pool[idx].cookie = eh['cookie'];
         pool[idx].updatedAt = nowStr;
         if (!Array.isArray(pool[idx].joinedApps)) pool[idx].joinedApps = [];
     }
@@ -375,6 +418,33 @@ function upsertAccountToken({ key, session_id, session_digest, request_id, tf_ua
     saveAccountsPool(pool);
     writeStore(String(idx), 'TF_ACTIVE_ACCOUNT_IDX');
     syncBoxJsSession(pool[idx]);
+    // Đồng bộ sang TF_HUB_ACCOUNTS để Hub 4 Tab sử dụng chung kho nick
+    try {
+        const hubAccs = loadJsonStore('TF_HUB_ACCOUNTS', {});
+        const hubId = key.toLowerCase();
+        const prevHub = hubAccs[hubId] || {};
+        hubAccs[hubId] = Object.assign({}, prevHub, {
+            id: hubId,
+            alias: prevHub.alias || pool[idx].name,
+            xSessionId: session_id,
+            xRequestId: request_id,
+            xSessionDigest: session_digest,
+            xDsid: pool[idx].xDsid || prevHub.xDsid || '',
+            xAppleStoreFront: pool[idx].xAppleStoreFront || prevHub.xAppleStoreFront || '',
+            xAppleIMd: pool[idx].xAppleIMd || prevHub.xAppleIMd || '',
+            xAppleIMdM: pool[idx].xAppleIMdM || prevHub.xAppleIMdM || '',
+            xAppleIMdRinfo: pool[idx].xAppleIMdRinfo || prevHub.xAppleIMdRinfo || '',
+            xAppleAmd: pool[idx].xAppleAmd || prevHub.xAppleAmd || '',
+            xAppleAmdM: pool[idx].xAppleAmdM || prevHub.xAppleAmdM || '',
+            xAppleAmdLu: pool[idx].xAppleAmdLu || prevHub.xAppleAmdLu || '',
+            cookie: pool[idx].cookie || prevHub.cookie || '',
+            ua: pool[idx].tf_ua || prevHub.ua || DEFAULT_UA,
+            status: 'ALIVE',
+            fail401: 0,
+            lastSeen: Date.now()
+        });
+        writeStore(JSON.stringify(hubAccs), 'TF_HUB_ACCOUNTS');
+    } catch (_) {}
     return { account: pool[idx], index: idx, total: pool.length, isChanged };
 }
 
@@ -527,7 +597,7 @@ if (typeof $request !== 'undefined' && $request && $request.url) {
             }
         }
 
-        const saved = upsertAccountToken({ key, session_id, session_digest, request_id, tf_ua });
+        const saved = upsertAccountToken({ key, session_id, session_digest, request_id, tf_ua, extraHeaders: lowerHeaders });
         const activeIds = ensureDefaultAppIdForAccount(saved ? saved.account : null);
 
         if (saved && saved.isChanged) {
@@ -695,14 +765,41 @@ function autoPostForAccount(ID, currentIds, account, pool, fallbackAppName) {
         'X-Request-Id': account.request_id,
         'User-Agent': account.tf_ua || DEFAULT_UA
     };
+    if (account.xDsid) header['X-Dsid'] = account.xDsid;
+    if (account.xAppleStoreFront) header['X-Apple-Store-Front'] = account.xAppleStoreFront;
+    if (account.xAppleIMd) header['X-Apple-I-MD'] = account.xAppleIMd;
+    if (account.xAppleIMdM) header['X-Apple-I-MD-M'] = account.xAppleIMdM;
+    if (account.xAppleIMdRinfo) header['X-Apple-I-MD-RINFO'] = account.xAppleIMdRinfo;
+    if (account.xAppleAmd) header['X-Apple-AMD'] = account.xAppleAmd;
+    if (account.xAppleAmdM) header['X-Apple-AMD-M'] = account.xAppleAmdM;
+    if (account.xAppleAmdLu) header['X-Apple-AMD-LU'] = account.xAppleAmdLu;
+    if (account.cookie) header['Cookie'] = account.cookie;
+
+    const refreshFromResp = (resp) => {
+        if (!resp || !resp.headers) return;
+        const rh = Object.fromEntries(Object.entries(resp.headers).map(([k, v]) => [k.toLowerCase(), v]));
+        let dirty = false;
+        if (rh['x-session-id'] && rh['x-session-id'] !== account.session_id) { account.session_id = rh['x-session-id']; dirty = true; }
+        if (rh['x-session-digest'] && rh['x-session-digest'] !== account.session_digest) { account.session_digest = rh['x-session-digest']; dirty = true; }
+        if (rh['x-request-id'] && rh['x-request-id'] !== account.request_id) { account.request_id = rh['x-request-id']; dirty = true; }
+        if (rh['set-cookie']) {
+            account.cookie = mergeSetCookie(account.cookie, rh['set-cookie']);
+            dirty = true;
+        }
+        if (dirty) {
+            account.updatedAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
+            saveAccountsPool(pool);
+        }
+    };
 
     return new Promise((resolve) => {
-        $httpClient.get({ url: testurl + ID, headers: header, timeout: 10 }, (error, response, data) => {
+        $httpClient.get({ url: testurl + ID, headers: header, timeout: httpTimeout(12) }, (error, response, data) => {
             if (error) {
                 console.log(`[${PLATFORM}-TF] [${account.name}] ${ID} Lỗi mạng tạm thời: ${error} (Giữ nguyên APP_ID)`);
                 resolve();
                 return;
             }
+            refreshFromResp(response);
 
             const status = response ? (response.status || response.statusCode || 0) : 0;
             if (status === 404) {
@@ -771,7 +868,8 @@ function autoPostForAccount(ID, currentIds, account, pool, fallbackAppName) {
                 return;
             }
 
-            $httpClient.post({ url: testurl + ID + '/accept', headers: header, timeout: 10 }, (postErr, postResp, body) => {
+            $httpClient.post({ url: testurl + ID + '/accept', headers: header, timeout: httpTimeout(12) }, (postErr, postResp, body) => {
+                refreshFromResp(postResp);
                 const postStatus = postResp ? (postResp.status || postResp.statusCode || 0) : 0;
                 if (!postErr && postStatus >= 200 && postStatus < 300) {
                     let jsonBody = null;

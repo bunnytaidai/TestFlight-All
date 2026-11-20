@@ -1,22 +1,24 @@
-#!name = Tự Động Tham Gia TestFlight 2 Tầng (Bộ 5 App Beta: Chrome, Aloha, VilaNet, Notion, Notion Calendar + Tự Đảo Nick Apple ID)
-#!desc = Canh slot thông minh 2 tầng (kiểm tra trang công khai không tốn Token + tự đảo nick Apple ID bấm Accept). Mặc định săn sẵn 5 gói: Google Chrome (LPQmtkUs), Aloha VPN (Xh9VNQoA), VilaNet (2mcx1R3I), Notion (YSo8aVCS) & Notion Calendar Next (CzpZHGuS).
+#!name = Tự Động Tham Gia TestFlight 2 Tầng v5.4.0.0 (Chuẩn Loon 3.5+)
+#!desc = Canh slot 2 tầng chống 429 & timeout ms trên Loon 3.5+ (kiểm tra trang công khai + tự đảo nick Apple ID bấm Accept + đồng bộ kho Anti-2FA). Mặc định săn 5 gói: Chrome, Aloha, VilaNet, Notion, Notion Calendar.
 #!openUrl = http://tf-link.test/
-#!author = DecoAri & Hely-T (v5.2.0.0)
+#!author = DecoAri & Hely-T (v5.4.0.0)
 #!homepage = https://github.com/bunnytaidai/TestFlight-All
 #!icon = https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png
-#!input = APP_ID
-#!date = 2026-11-19 11:15:00
+#!date = 2026-11-20 15:20:00
+
+[Argument]
+APP_ID = input, "LPQmtkUs|Xh9VNQoA|2mcx1R3I|YSo8aVCS|CzpZHGuS", tag = Danh sách mã TestFlight, desc = Ngăn cách nhiều mã bằng dấu | hoặc dấu phẩy
 
 [Rule]
 DOMAIN-KEYWORD, testflight.apple.com, DIRECT
 DOMAIN-SUFFIX, beta.apple.com, DIRECT
 
 [Script]
-# Tự động thu thập Token đa tài khoản, xóa If-None-Match khi cần làm mới phiên, thêm APP_ID và đổi nick trên /v1/devices
-http-request ^https?:\/\/testflight\.apple\.com\/(v\d\/accounts\/[0-9a-fA-F-]{36}\/(apps|settings)(\?.*)?$|join\/[A-Za-z0-9]+|v3\/accounts\/[0-9a-fA-F-]{36}\/ru\/.*|v1\/devices(\?.*)?$) script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/Auto_join_TF.js, timeout = 20, tag = Thu thập Token & Đổi Nick Apple ID, argument = [APP_ID]
+# Tự động thu thập trọn bộ Token Anti-2FA, xóa If-None-Match khi làm mới phiên và đổi nick trên /v1/devices
+http-request ^https?:\/\/testflight\.apple\.com\/(v\d\/accounts\/[0-9a-fA-F-]{36}\/(apps|settings)(\?.*)?$|join\/[A-Za-z0-9]+|v3\/accounts\/[0-9a-fA-F-]{36}\/ru\/.*|v1\/devices(\?.*)?$) script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/Auto_join_TF.js, timeout = 20, tag = Thu Thập Token & Đổi Nick Apple ID, argument = [{APP_ID}]
 
-# Chạy ngầm mỗi 10 giây (an toàn RAM < 15MB cho NetworkExtension, chống HTTP 429)
-cron "*/10 * * * * *" script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/Auto_join_TF.js, tag = Tự động săn TestFlight 2 Tầng, timeout = 25, argument = [APP_ID]
+# Chạy ngầm mỗi 1 phút (an toàn RAM < 15MB cho NetworkExtension Loon 3.5+ và chống HTTP 429)
+cron "0 */1 * * * *" script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/Auto_join_TF.js, tag = Tự Động Săn TestFlight 2 Tầng, timeout = 25, argument = [{APP_ID}]
 
 [Mitm]
 hostname = testflight.apple.com

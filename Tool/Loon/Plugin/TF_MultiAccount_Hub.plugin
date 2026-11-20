@@ -1,11 +1,11 @@
-#!name = ✈️ TF Multi-Account Hub v2.3.0.0 (Loon Pro — 4 Tab + Sandbox Replay + Round-Robin)
-#!desc = Trung tâm All-in-One 4 Tab cho Loon 3.5+ (A9 iOS 15.8.8): Quản lý CRUD Link TestFlight + Kho Apple ID Anti-2FA xoay vòng Round-Robin + API Replay tự tham gia/cập nhật/install + Lách iOS cũ & Phá vùng + Quản lý gói Sandbox TestFlight (StoreKit 1/2 + Replay verifyReceipt) + Bảng Log trạng thái. Mở Safari: http://tf-hub.test/
+#!name = ✈️ TF Multi-Account Hub v2.4.0.0 (Loon 3.5+ Anti-2FA + Keep-Alive + 4 Tab)
+#!desc = Trung tâm All-in-One 4 Tab cho Loon 3.5+ (iOS 15.8.8): Giữ sống & xoay vòng Token/Cookie Apple ID Anti-2FA (đồng bộ 2 chiều BoxJs/TF_ACCOUNTS + Xuất/Nhập JSON cho Hook JS/API) + CRUD Link TestFlight + API Replay tự tham gia/cập nhật/install + Lách iOS cũ & Phá vùng + Quản lý gói Sandbox TestFlight + Bảng Log trạng thái. Mở Safari: http://tf-hub.test/
 #!openUrl = http://tf-hub.test/
-#!author = Hely-T & Antigravity (v2.3.0.0)
+#!author = Hely-T & Antigravity (v2.4.0.0)
 #!homepage = https://github.com/bunnytaidai/TestFlight-All
 #!icon = https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png
-#!version = 2.3.0.0
-#!date = 2026-11-19 17:12:00
+#!version = 2.4.0.0
+#!date = 2026-11-20 15:20:00
 
 [Argument]
 HUB_MODE = select, "MERGE", "PIN", tag = Chế độ tráo nick, desc = MERGE gộp mọi nick hoặc PIN khóa 1 nick
@@ -26,21 +26,21 @@ DOMAIN-KEYWORD, testflight.apple.com, DIRECT
 tf-hub.test = 127.0.0.1
 
 [Script]
-# 1. Giao diện Web 4 Tab + Bảng Log trạng thái (http://tf-hub.test/)
+# 1. Giao diện Web 4 Tab + API Vault JSON + Bảng Log trạng thái (http://tf-hub.test/)
 http-request ^http:\/\/tf-hub\.test(\/.*)?$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js, requires-body = true, timeout = 25, tag = TF Hub Web UI 4 Tab, argument = [{HUB_MODE},{HUB_COUNTRY},{HUB_KEEPALIVE},{HUB_AUTO_JOIN},{HUB_AUTO_UPDATE}]
 
-# 2. MITM Request TestFlight — Bắt tham số phiên Anti-2FA + Tráo MERGE/PIN + Phá vùng
+# 2. MITM Request TestFlight — Bắt trọn bộ tham số phiên Anti-2FA + Tráo MERGE/PIN + Phá vùng
 http-request ^https?:\/\/testflight\.apple\.com\/ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js, requires-body = true, max-size = 524288, timeout = 20, tag = TF Hub Request Anti-2FA, argument = [{HUB_MODE},{HUB_COUNTRY},{HUB_KEEPALIVE},{HUB_AUTO_JOIN},{HUB_AUTO_UPDATE}]
 
-# 3. MITM Response TestFlight — Lách iOS cũ (modBuild) & Ép hiện nút Cài đặt
+# 3. MITM Response TestFlight — Xoay vòng Set-Cookie/Token mới + Lách iOS cũ (modBuild)
 http-response ^https?:\/\/testflight\.apple\.com\/ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js, requires-body = true, max-size = 524288, timeout = 20, tag = TF Hub Response modBuild, argument = [{HUB_MODE},{HUB_COUNTRY},{HUB_KEEPALIVE},{HUB_AUTO_JOIN},{HUB_AUTO_UPDATE}]
 
 # 4. MITM StoreKit 1 & 2 Sandbox — Chỉ đọc ghi nhận gói đăng ký & mẫu verifyReceipt kiểm tra hạn
-http-request ^https?:\/\/sandbox\.itunes\.apple\.com\/verifyReceipt script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js, requires-body = true, max-size = 524288, timeout = 20, tag = TF Hub Sandbox Receipt Capture RO
+http-request ^https?:\/\/sandbox\.itunes\.apple\.com\/verifyReceipt script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js, requires-body = true, max-size = 524288, timeout = 20, tag = TF Hub Sandbox Receipt RO
 http-response ^https?:\/\/(sandbox\.itunes|mzstorekit-sb\.itunes|api\.storekit-sandbox\.itunes)\.apple\.com\/ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js, requires-body = true, max-size = 524288, timeout = 20, tag = TF Hub StoreKit Sandbox RO
 
-# 5. Cron ngầm mỗi 5 phút — Nuôi token Keep-Alive + Auto Update + Sniper + Nhắc gia hạn
+# 5. Cron ngầm mỗi 5 phút — Ping kép nuôi Token Anti-2FA + Auto Update + Sniper + Nhắc gia hạn
 cron "0 */5 * * * *" script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_MultiAccount_Hub.js, timeout = 25, tag = TF Hub Cron Auto-Pilot, argument = [{HUB_MODE},{HUB_COUNTRY},{HUB_KEEPALIVE},{HUB_AUTO_JOIN},{HUB_AUTO_UPDATE}]
 
-[MITM]
+[Mitm]
 hostname = testflight.apple.com, sandbox.itunes.apple.com, mzstorekit-sb.itunes.apple.com, api.storekit-sandbox.itunes.apple.com

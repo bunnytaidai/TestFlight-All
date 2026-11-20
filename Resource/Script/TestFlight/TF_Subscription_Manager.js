@@ -157,7 +157,12 @@ function fetchAppsForAccount(account) {
             'User-Agent': account.tf_ua || DEFAULT_UA,
             'Accept': 'application/json'
         };
-        $httpClient.get({ url, headers, timeout: 10 }, (err, resp, body) => {
+        if (account.xDsid) headers['X-Dsid'] = account.xDsid;
+        if (account.xAppleStoreFront) headers['X-Apple-Store-Front'] = account.xAppleStoreFront;
+        if (account.xAppleIMd) headers['X-Apple-I-MD'] = account.xAppleIMd;
+        if (account.xAppleIMdM) headers['X-Apple-I-MD-M'] = account.xAppleIMdM;
+        if (account.cookie) headers['Cookie'] = account.cookie;
+        $httpClient.get({ url, headers, timeout: PLATFORM === 'Loon' ? 12000 : 12 }, (err, resp, body) => {
             if (err) {
                 resolve({ ok: false, status: 0, apps: [], reason: String(err) });
                 return;

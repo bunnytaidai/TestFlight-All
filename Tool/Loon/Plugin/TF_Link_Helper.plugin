@@ -1,11 +1,13 @@
-#!name = Trợ Lý Bắt Link & Quản Lý Hàng Đợi TestFlight Offline (tf-link.test)
-#!desc = Tự động gom mọi link testflight.apple.com/join/XXXX vào hàng đợi săn, hỗ trợ chuyển hướng thẳng sang itms-beta:// mở ngay app TestFlight và quản lý hàng loạt link offline siêu tốc tại http://tf-link.test/
+#!name = Trợ Lý Bắt Link & Quản Lý Hàng Đợi TestFlight v5.4.0.0 (Chuẩn Loon 3.5+ — tf-link.test)
+#!desc = Tự động gom mọi link testflight.apple.com/join/XXXX vào hàng đợi săn, hỗ trợ mở thẳng itms-beta:// và quản lý hàng loạt link offline tại http://tf-link.test/
 #!openUrl = http://tf-link.test/
-#!author = Hely-T & Antigravity (v5.0.0.0)
+#!author = Hely-T & Antigravity (v5.4.0.0)
 #!homepage = https://github.com/bunnytaidai/TestFlight-All
 #!icon = https://raw.githubusercontent.com/Orz-3/mini/master/Color/testflight.png
-#!select = AutoOpenApp, false, true
-#!date = 2026-11-15 23:20:00
+#!date = 2026-11-20 15:20:00
+
+[Argument]
+AutoOpenApp = switch, false, true, tag = Tự mở thẳng app TestFlight, desc = Chuyển hướng itms-beta:// ngay khi bấm link
 
 [General]
 force-http-engine-hosts = tf-link.test
@@ -18,11 +20,8 @@ DOMAIN-KEYWORD, testflight.apple.com, DIRECT
 tf-link.test = 127.0.0.1
 
 [Script]
-# Trung tâm Web Quản Lý Hàng Đợi & Đa Tài Khoản Offline tại http://tf-link.test/
-http-request ^http:\/\/tf-link\.test(\/.*)?$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Link_Helper.js, requires-body = true, timeout = 20, tag = Quản Lý Hàng Đợi Offline (tf-link.test), argument = [AutoOpenApp]
-
-# Tự động bắt mã APP_ID khi bấm vào link TestFlight trên Safari / Telegram / X
-http-request ^https?:\/\/testflight\.apple\.com\/join\/[A-Za-z0-9]{5,12} script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Link_Helper.js, timeout = 15, tag = Tự Bắt Link & Mở Nhanh TestFlight, argument = [AutoOpenApp]
+http-request ^http:\/\/tf-link\.test(\/.*)?$ script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Link_Helper.js, requires-body = true, timeout = 20, tag = Quản Lý Hàng Đợi Offline, argument = [{AutoOpenApp}]
+http-request ^https?:\/\/testflight\.apple\.com\/join\/[A-Za-z0-9]{5,12} script-path = https://raw.githubusercontent.com/bunnytaidai/TestFlight-All/master/Resource/Script/TestFlight/TF_Link_Helper.js, timeout = 15, tag = Tự Bắt Link TestFlight, argument = [{AutoOpenApp}]
 
 [Mitm]
 hostname = testflight.apple.com

@@ -233,7 +233,7 @@ function scanSingleCode(code) {
                     'Accept-Language': 'en-US,en;q=0.9',
                     'User-Agent': PUBLIC_UA
                 },
-                timeout: 8
+                timeout: PLATFORM === 'Loon' ? 10000 : 10
             },
             (err, resp, body) => {
                 const latencyMs = Date.now() - t0;

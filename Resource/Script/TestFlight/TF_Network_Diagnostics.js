@@ -90,7 +90,7 @@ function probeEndpoint(name, url) {
             {
                 url,
                 headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_7 like Mac OS X)' },
-                timeout: 7
+                timeout: PLATFORM === 'Loon' ? 10000 : 10
             },
             (err, resp) => {
                 const ms = Date.now() - start;
