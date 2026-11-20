@@ -23,6 +23,7 @@ const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 const KEY_HUB_ACCS = 'TF_HUB_ACCOUNTS';
 const KEY_LEGACY_ACCS = 'TF_ACCOUNTS';
 const KEY_ROTATOR_PTR = 'TF_KA_ROTATOR_IDX';
+const KEY_ROTATOR_LAST_TS = 'TF_KA_ROTATOR_LAST_TS';
 const KEY_ACTION_LOGS = 'TF_HUB_ACTION_LOGS';
 
 const isLoon = typeof $loon !== 'undefined';
@@ -340,6 +341,12 @@ function passiveCaptureOnRequest() {
 
 async function runCronRotation() {
   const startedAt = Date.now();
+  // Chống bắn đúp 2 nhịp cron liên tiếp < 5s khi Shadowrocket/Loon vừa reconnect VPN
+  const lastTs = Number(readStore(KEY_ROTATOR_LAST_TS, '0')) || 0;
+  if (lastTs > 0 && startedAt - lastTs < 5000) {
+    return $done();
+  }
+  writeStore(KEY_ROTATOR_LAST_TS, String(startedAt));
   const args = parseArgs();
   const hub = loadMergedAccounts();
   const ids = Object.keys(hub);
