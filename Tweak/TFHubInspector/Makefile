@@ -12,3 +12,4 @@ TFHubInspector_CFLAGS = -fobjc-arc -Wall
 TFHubInspector_FRAMEWORKS = Foundation UIKit StoreKit
 
 include $(THEOS_MAKE_PATH)/tweak.mk
+

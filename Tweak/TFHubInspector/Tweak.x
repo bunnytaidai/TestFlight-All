@@ -295,3 +295,4 @@ static void tfhubStartLocalServer(void) {
     gStoreQueue = dispatch_queue_create("com.antidv.tfhubinspector.store", DISPATCH_QUEUE_SERIAL);
     tfhubStartLocalServer();
 }
+

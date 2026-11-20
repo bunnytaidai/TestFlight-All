@@ -1,0 +1,9 @@
+.code-graph/
+.docs/
+.vscode/
+.env
+.env.local
+.env.*.local
+*.log
+*.pem
+*.key
