@@ -325,9 +325,12 @@ function httpCall(method, opts) {
     reqOpts['X-Surge-Skip-Scripting'] = true;
     reqOpts.headers['X-TF-Hub-Internal'] = '1';
 
-    const fn = $httpClient[method.toLowerCase()];
-    if (!fn) return resolve({ error: `Unsupported ${method}`, status: 0, headers: {}, body: '', durationMs: 0 });
-    fn(reqOpts, (err, resp, data) => {
+    const m = String(method || 'get').toLowerCase();
+    if (typeof $httpClient[m] !== 'function') {
+      return resolve({ error: `Unsupported ${method}`, status: 0, headers: {}, body: '', durationMs: 0 });
+    }
+    // Bắt buộc gọi trực tiếp trên $httpClient[m](...) để giữ đúng con trỏ self cho Objective-C JSExport trên Shadowrocket
+    $httpClient[m](reqOpts, (err, resp, data) => {
       const durationMs = Date.now() - started;
       if (err) return resolve({ error: String(err), status: 0, headers: {}, body: '', durationMs });
       resolve({
