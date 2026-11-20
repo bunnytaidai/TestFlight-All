@@ -1532,7 +1532,20 @@ function renderHtmlDashboard() {
   </div>
 
 <script>
-const api = (p, b) => fetch(p, b ? {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)} : {}).then(r=>r.json());
+const IS_ROCKET = ${typeof $rocket !== 'undefined' ? 'true' : 'false'};
+const api = (p, b) => {
+  if (!b) return fetch(p).then(r => r.json());
+  const raw = JSON.stringify(b);
+  // Shadowrocket 2.2.x có lỗi trả ngược request.body trên POST có thân gói -> gửi qua header X-Hub-Payload với body rỗng để nhận đúng JSON trả về
+  if (IS_ROCKET) {
+    const enc = encodeURIComponent(raw);
+    if (enc.length <= 14000) {
+      return fetch(p, { method: 'POST', headers: { 'X-Hub-Payload': enc } }).then(r => r.json());
+    }
+    return fetch(p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: raw }).then(() => ({ ok: true, imported: Object.keys((b && b.accounts) || {}).length, total: -1 }));
+  }
+  return fetch(p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: raw }).then(r => r.json());
+};
 let LAST_LOGS = [];
 function setStat(t, ok=true){const e=document.getElementById('syncStat');e.textContent=t;e.className='badge '+(ok?'b-ok':'b-err');}
 function showTab(i){document.querySelectorAll('.tab').forEach((t,idx)=>t.classList.toggle('active',idx===i));document.querySelectorAll('.panel').forEach((p,idx)=>p.classList.toggle('active',idx===i));}
@@ -1773,9 +1786,20 @@ loadState();
 
 async function handleWebUiRequest() {
   const url = $request.url || '';
+  const qIdx = url.indexOf('?');
   const path = url.replace(/^https?:\/\/[^/]+/i, '').split('?')[0] || '/';
   let body = {};
-  if ($request.body) { try { body = JSON.parse($request.body); } catch (_) {} }
+  const reqH = lowerHeaders(($request && $request.headers) || {});
+  if (reqH['x-hub-payload']) {
+    try { body = JSON.parse(decodeURIComponent(reqH['x-hub-payload'])); } catch (_) {}
+  } else if ($request.body) {
+    try { body = JSON.parse($request.body); } catch (_) {}
+  } else if (qIdx >= 0) {
+    const m = url.slice(qIdx + 1).match(/(?:^|&)_p=([^&]+)/);
+    if (m) {
+      try { body = JSON.parse(decodeURIComponent(m[1])); } catch (_) {}
+    }
+  }
 
   if (path === '/' || path === '/index.html') return renderHtmlDashboard();
 
