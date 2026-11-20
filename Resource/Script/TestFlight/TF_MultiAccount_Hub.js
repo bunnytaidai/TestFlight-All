@@ -651,18 +651,21 @@ async function sendInstallApi(acc, appId, buildId, countryCode) {
   return { ok, status: r.status, appId, buildId, account: acc.alias, durationMs: r.durationMs };
 }
 
-async function pingAndSyncAccount(acc, cfg, autoTriggerUpdates = false) {
+async function pingAndSyncAccount(acc, cfg, autoTriggerUpdates = false, skipSecondarySettings = false) {
   const accounts = syncLegacyAccountsIntoHub();
   const cur = accounts[acc.id] || acc;
   const url = `${TF_ORIGIN}/v3/accounts/${cur.id}/apps`;
-  const r = await tfApiCall('GET', cur, { url, timeout: 12 });
+  const r = await tfApiCall('GET', cur, { url, timeout: 10 });
 
   if (r.status === 200 && r.body) {
     const rotated = Boolean(r.rotated);
     const dcNote = r.dcSwitched ? `, chuyển cụm dc=${r.usedDc}` : (r.usedDc ? `, dc=${r.usedDc}` : '');
-    // Ping phụ /v1/accounts/{id}/settings đúng cụm DC đã thắng để gia hạn phiên
-    const r2 = await tfApiCall('GET', cur, { url: `${TF_ORIGIN}/v1/accounts/${cur.id}/settings`, timeout: 10 });
-    const rotated2 = r2.status === 200 ? Boolean(r2.rotated) : false;
+    // Ping phụ /v1/accounts/{id}/settings khi chạy đơn lẻ hoặc cron ít nick (bỏ qua khi pingAll hàng loạt để Web UI phản hồi < 6s)
+    let rotated2 = false;
+    if (!skipSecondarySettings) {
+      const r2 = await tfApiCall('GET', cur, { url: `${TF_ORIGIN}/v1/accounts/${cur.id}/settings`, timeout: 8 });
+      rotated2 = r2.status === 200 ? Boolean(r2.rotated) : false;
+    }
 
     let appsSummary = cur.apps || [];
     const buildMap = readJson(KEYS.APP_BUILDS, {});
@@ -701,8 +704,9 @@ async function pingAndSyncAccount(acc, cfg, autoTriggerUpdates = false) {
     cur.lastPing = Date.now();
     cur.appCount = appsSummary.length;
     cur.apps = appsSummary;
-    accounts[cur.id] = cur;
-    storeWrite(KEYS.ACCOUNTS, accounts);
+    const freshAccounts = syncLegacyAccountsIntoHub();
+    freshAccounts[cur.id] = cur;
+    storeWrite(KEYS.ACCOUNTS, freshAccounts);
     mirrorHubAccountToLegacy(cur);
     recordAction('OK', 'PING_SYNC', cur.alias, `Sống (${appsSummary.length} apps, ${updatedApps.length} bản mới${dcNote}${rotated || rotated2 ? ', đã xoay token mới' : ''})`, 200, r.durationMs);
 
@@ -723,8 +727,9 @@ async function pingAndSyncAccount(acc, cfg, autoTriggerUpdates = false) {
       cur.status = 'EXPIRED_401';
       notify('TF Hub — Token Hết Hạn (401)', cur.alias, `Cả 2 cụm Apple (st/pv) đều báo 401. Mở app TestFlight bằng nick này 1 lần để nạp lại.`, `http://${HUB_HOST}/`);
     }
-    accounts[cur.id] = cur;
-    storeWrite(KEYS.ACCOUNTS, accounts);
+    const freshAccounts = syncLegacyAccountsIntoHub();
+    freshAccounts[cur.id] = cur;
+    storeWrite(KEYS.ACCOUNTS, freshAccounts);
     recordAction('ERR', 'PING_SYNC', cur.alias, `Token 401 cả 2 cụm st/pv (${cur.fail401}/2) — cần nạp lại phiên`, 401, r.durationMs);
     return { id: cur.id, alias: cur.alias, ok: false, status: 401 };
   }
@@ -751,7 +756,7 @@ async function pingAccounts(targetIds = null, force = false, autoTriggerUpdates 
   const results = [];
   const now = Date.now();
   const intervalMs = cfg.keepAliveMin * 60 * 1000;
-  let pingedCount = 0;
+  const toPing = [];
 
   for (const id of ids) {
     const acc = accounts[id];
@@ -760,13 +765,35 @@ async function pingAccounts(targetIds = null, force = false, autoTriggerUpdates 
       results.push({ id, alias: acc.alias, skipped: true, status: 200 });
       continue;
     }
+    toPing.push(acc);
+  }
+
+  // Khi gọi pingAll nhiều nick từ Web UI (force=true & >1 nick), chạy tối đa 2 luồng song song & bỏ bước /settings phụ để tránh timeout 25s
+  const batchMode = Boolean(force && toPing.length > 1);
+  if (batchMode) {
+    for (let i = 0; i < toPing.length; i += 2) {
+      if (i > 0 && Date.now() - now > 18000) {
+        for (let k = i; k < toPing.length; k++) {
+          results.push({ id: toPing[k].id, alias: toPing[k].alias, deferred: true, status: 0 });
+        }
+        break;
+      }
+      const chunk = toPing.slice(i, i + 2);
+      const chunkRes = await Promise.all(chunk.map((a) => pingAndSyncAccount(a, cfg, autoTriggerUpdates, true)));
+      results.push(...chunkRes);
+    }
+    return results;
+  }
+
+  let pingedCount = 0;
+  for (const acc of toPing) {
     // Chống timeout NetworkExtension khi chạy Cron với nhiều nick: dừng nhẹ sau 16s để nhường phần còn lại cho lượt Round-Robin kế tiếp
     if (!force && pingedCount > 0 && Date.now() - now > 16000) {
-      results.push({ id, alias: acc.alias, deferred: true, status: 0 });
+      results.push({ id: acc.id, alias: acc.alias, deferred: true, status: 0 });
       continue;
     }
     if (pingedCount > 0) await sleepMs(350);
-    results.push(await pingAndSyncAccount(acc, cfg, autoTriggerUpdates));
+    results.push(await pingAndSyncAccount(acc, cfg, autoTriggerUpdates, false));
     pingedCount++;
   }
   return results;
